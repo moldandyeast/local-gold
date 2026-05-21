@@ -22,3 +22,76 @@ describe('index-db: schema', () => {
     db.close();
   });
 });
+
+import { upsertCard, deleteCard, getCard, listCards, allHashes, searchFts } from '../src/main/index-db';
+import type { Card } from '../src/shared/types';
+
+function sampleCard(over: Partial<Card> = {}): Card {
+  return {
+    id: 'c1',
+    created: '2026-05-21T09:00:00.000Z',
+    body: 'the quick brown fox',
+    tags: ['animal'],
+    attachments: [],
+    ...over
+  };
+}
+
+describe('index-db: upsert/query', () => {
+  it('upserts and reads a card back', () => {
+    const db = openDb(':memory:');
+    initSchema(db);
+    upsertCard(db, sampleCard(), '/p/c1.md', 'hash1');
+    const got = getCard(db, 'c1');
+    expect(got?.body).toBe('the quick brown fox');
+    expect(got?.tags).toEqual(['animal']);
+    db.close();
+  });
+
+  it('upsert on the same id updates in place', () => {
+    const db = openDb(':memory:');
+    initSchema(db);
+    upsertCard(db, sampleCard(), '/p/c1.md', 'hash1');
+    upsertCard(db, sampleCard({ body: 'updated body' }), '/p/c1.md', 'hash2');
+    expect(getCard(db, 'c1')?.body).toBe('updated body');
+    expect(listCards(db, 100, 0)).toHaveLength(1);
+    db.close();
+  });
+
+  it('deleteCard removes the row', () => {
+    const db = openDb(':memory:');
+    initSchema(db);
+    upsertCard(db, sampleCard(), '/p/c1.md', 'hash1');
+    deleteCard(db, 'c1');
+    expect(getCard(db, 'c1')).toBeNull();
+    db.close();
+  });
+
+  it('allHashes maps id to content hash', () => {
+    const db = openDb(':memory:');
+    initSchema(db);
+    upsertCard(db, sampleCard(), '/p/c1.md', 'hash1');
+    expect(allHashes(db).get('c1')).toBe('hash1');
+    db.close();
+  });
+
+  it('listCards returns newest first', () => {
+    const db = openDb(':memory:');
+    initSchema(db);
+    upsertCard(db, sampleCard({ id: 'old', created: '2026-01-01T00:00:00.000Z' }), '/p/old.md', 'h');
+    upsertCard(db, sampleCard({ id: 'new', created: '2026-09-01T00:00:00.000Z' }), '/p/new.md', 'h');
+    expect(listCards(db, 100, 0).map((c) => c.id)).toEqual(['new', 'old']);
+    db.close();
+  });
+
+  it('searchFts matches body terms and ignores punctuation in the query', () => {
+    const db = openDb(':memory:');
+    initSchema(db);
+    upsertCard(db, sampleCard(), '/p/c1.md', 'h');
+    expect(searchFts(db, 'brown').map((h) => h.id)).toEqual(['c1']);
+    expect(searchFts(db, 'quick!! fox?').map((h) => h.id)).toEqual(['c1']);
+    expect(searchFts(db, 'elephant')).toEqual([]);
+    expect(searchFts(db, '   ')).toEqual([]);
+    db.close();
+  });
+});

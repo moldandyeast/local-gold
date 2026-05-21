@@ -39,3 +39,97 @@ export function initSchema(db: DB): void {
     CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
   `);
 }
+
+import type { Card } from '../shared/types';
+
+interface CardRow {
+  id: string;
+  created: string;
+  body: string;
+  tags: string;
+  attachments: string;
+}
+
+function rowToCard(row: CardRow): Card {
+  return {
+    id: row.id,
+    created: row.created,
+    body: row.body,
+    tags: JSON.parse(row.tags),
+    attachments: JSON.parse(row.attachments)
+  };
+}
+
+/** Insert a card, or update it in place if its id already exists. */
+export function upsertCard(db: DB, card: Card, filePath: string, hash: string): void {
+  db.prepare(
+    `INSERT INTO cards (id, created, body, tags, attachments, file_path, content_hash)
+     VALUES (@id, @created, @body, @tags, @attachments, @file_path, @content_hash)
+     ON CONFLICT(id) DO UPDATE SET
+       created=@created, body=@body, tags=@tags, attachments=@attachments,
+       file_path=@file_path, content_hash=@content_hash`
+  ).run({
+    id: card.id,
+    created: card.created,
+    body: card.body,
+    tags: JSON.stringify(card.tags),
+    attachments: JSON.stringify(card.attachments),
+    file_path: filePath,
+    content_hash: hash
+  });
+}
+
+/** Remove a card from the index. */
+export function deleteCard(db: DB, id: string): void {
+  db.prepare('DELETE FROM cards WHERE id = ?').run(id);
+}
+
+/** Fetch a card by id, or null. */
+export function getCard(db: DB, id: string): Card | null {
+  const row = db
+    .prepare('SELECT id, created, body, tags, attachments FROM cards WHERE id = ?')
+    .get(id) as CardRow | undefined;
+  return row ? rowToCard(row) : null;
+}
+
+/** Cards newest first, paginated. */
+export function listCards(db: DB, limit: number, offset: number): Card[] {
+  const rows = db
+    .prepare(
+      'SELECT id, created, body, tags, attachments FROM cards ORDER BY created DESC LIMIT ? OFFSET ?'
+    )
+    .all(limit, offset) as CardRow[];
+  return rows.map(rowToCard);
+}
+
+/** Map of card id to its stored content hash. */
+export function allHashes(db: DB): Map<string, string> {
+  const rows = db.prepare('SELECT id, content_hash FROM cards').all() as {
+    id: string;
+    content_hash: string;
+  }[];
+  return new Map(rows.map((r) => [r.id, r.content_hash]));
+}
+
+/** Turn a freeform query into a safe FTS5 MATCH expression of quoted terms. */
+function ftsQuery(query: string): string {
+  return query
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((t) => `"${t.replace(/"/g, '')}"`)
+    .join(' ');
+}
+
+/** Keyword search over body + tags. Returns ids and highlighted snippets, ranked. */
+export function searchFts(db: DB, query: string): { id: string; snippet: string }[] {
+  const match = ftsQuery(query);
+  if (!match) return [];
+  return db
+    .prepare(
+      `SELECT c.id AS id, snippet(cards_fts, 0, '«', '»', '…', 12) AS snippet
+       FROM cards_fts JOIN cards c ON c.rowid = cards_fts.rowid
+       WHERE cards_fts MATCH ? ORDER BY rank LIMIT 50`
+    )
+    .all(match) as { id: string; snippet: string }[];
+}
