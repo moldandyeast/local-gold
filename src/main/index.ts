@@ -1,8 +1,17 @@
 import { app, BrowserWindow } from 'electron';
 import { join } from 'path';
+import { mkdir } from 'fs/promises';
+import { rootDir, cardsDir, attachmentsDir, dbPath } from './paths';
+import { openDb, initSchema, rebuildIndex } from './index-db';
+import { registerIpc } from './ipc';
 
 function createWindow(): void {
-  const win = new BrowserWindow({ width: 900, height: 700, show: false });
+  const win = new BrowserWindow({
+    width: 960,
+    height: 720,
+    show: false,
+    webPreferences: { preload: join(__dirname, '../preload/index.js') }
+  });
   win.on('ready-to-show', () => win.show());
   if (process.env['ELECTRON_RENDERER_URL']) {
     win.loadURL(process.env['ELECTRON_RENDERER_URL']);
@@ -11,5 +20,20 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(async () => {
+  const root = rootDir();
+  await mkdir(cardsDir(root), { recursive: true });
+  await mkdir(attachmentsDir(root), { recursive: true });
+
+  const db = openDb(dbPath(root));
+  initSchema(db);
+  await rebuildIndex(db, root);
+  registerIpc(db, root);
+
+  createWindow();
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+});
+
 app.on('window-all-closed', () => app.quit());
