@@ -133,3 +133,26 @@ export function searchFts(db: DB, query: string): { id: string; snippet: string 
     )
     .all(match) as { id: string; snippet: string }[];
 }
+
+import { listCardFiles, parseCard } from './store';
+
+/**
+ * Reconcile the index with the `cards/` folder: upsert new or changed files,
+ * delete index rows whose file is gone, skip files whose hash is unchanged.
+ */
+export async function rebuildIndex(db: DB, root: string): Promise<void> {
+  const files = await listCardFiles(root);
+  const known = allHashes(db);
+  const onDisk = new Set<string>();
+
+  for (const file of files) {
+    onDisk.add(file.id);
+    if (known.get(file.id) === file.hash) continue;
+    const card = parseCard(file.raw, file.id);
+    upsertCard(db, card, file.filePath, file.hash);
+  }
+
+  for (const id of known.keys()) {
+    if (!onDisk.has(id)) deleteCard(db, id);
+  }
+}

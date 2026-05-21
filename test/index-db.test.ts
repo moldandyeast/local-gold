@@ -95,3 +95,52 @@ describe('index-db: upsert/query', () => {
     db.close();
   });
 });
+
+import { rebuildIndex } from '../src/main/index-db';
+import { writeCard } from '../src/main/store';
+import { mkdtempSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join as pjoin } from 'path';
+
+describe('index-db: rebuild', () => {
+  it('indexes cards found on disk', async () => {
+    const root = mkdtempSync(pjoin(tmpdir(), 'lg-'));
+    await writeCard(root, { body: 'disk card one', tags: [], images: [] });
+    const db = openDb(':memory:');
+    initSchema(db);
+    await rebuildIndex(db, root);
+    expect(listCards(db, 100, 0)).toHaveLength(1);
+    expect(searchFts(db, 'disk').length).toBe(1);
+    rmSync(root, { recursive: true, force: true });
+    db.close();
+  });
+
+  it('drops index rows whose card file no longer exists', async () => {
+    const root = mkdtempSync(pjoin(tmpdir(), 'lg-'));
+    const db = openDb(':memory:');
+    initSchema(db);
+    upsertCard(
+      db,
+      { id: 'ghost', created: '2026-01-01T00:00:00.000Z', body: 'x', tags: [], attachments: [] },
+      '/p/ghost.md',
+      'h'
+    );
+    await rebuildIndex(db, root);
+    expect(getCard(db, 'ghost')).toBeNull();
+    rmSync(root, { recursive: true, force: true });
+    db.close();
+  });
+
+  it('skips files whose hash is unchanged on a second rebuild', async () => {
+    const root = mkdtempSync(pjoin(tmpdir(), 'lg-'));
+    await writeCard(root, { body: 'stable card', tags: [], images: [] });
+    const db = openDb(':memory:');
+    initSchema(db);
+    await rebuildIndex(db, root);
+    const firstHash = [...allHashes(db).values()][0];
+    await rebuildIndex(db, root);
+    expect([...allHashes(db).values()][0]).toBe(firstHash);
+    rmSync(root, { recursive: true, force: true });
+    db.close();
+  });
+});
