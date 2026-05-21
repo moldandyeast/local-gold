@@ -5,10 +5,11 @@ describe('index-db: schema', () => {
   it('creates the cards, cards_fts and meta tables', () => {
     const db = openDb(':memory:');
     initSchema(db);
-    const names = db
-      .prepare("SELECT name FROM sqlite_master WHERE type IN ('table') ORDER BY name")
-      .all()
-      .map((r: { name: string }) => r.name);
+    const names = (
+      db
+        .prepare("SELECT name FROM sqlite_master WHERE type IN ('table') ORDER BY name")
+        .all() as { name: string }[]
+    ).map((r) => r.name);
     expect(names).toContain('cards');
     expect(names).toContain('cards_fts');
     expect(names).toContain('meta');
