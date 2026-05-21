@@ -1,4 +1,10 @@
 node_modules/
 dist/
-index.db
 out/
+
+# User data and rebuildable index — not source
+index.db
+index.db-*
+cards/
+attachments/
+config.json
