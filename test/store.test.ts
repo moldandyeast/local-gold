@@ -54,3 +54,54 @@ describe('store: serialize/parse', () => {
     expect(hashContent('a')).not.toBe(hashContent('b'));
   });
 });
+
+import { writeCard, listCards, listCardFiles, readCard } from '../src/main/store';
+import { mkdtempSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join as pjoin } from 'path';
+
+describe('store: write/list/read', () => {
+  function tmpRoot(): string {
+    return mkdtempSync(pjoin(tmpdir(), 'lg-'));
+  }
+
+  it('writes a card file and an image attachment', async () => {
+    const root = tmpRoot();
+    const card = await writeCard(root, {
+      body: 'A captured thought',
+      tags: ['idea'],
+      images: [{ name: 'pic.png', data: new Uint8Array([1, 2, 3]) }]
+    });
+    expect(card.id).toMatch(/^\d{8}-\d{6}-a-captured-thought$/);
+    expect(card.attachments).toHaveLength(1);
+    const read = await readCard(root, card.id);
+    expect(read?.body).toBe('A captured thought');
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('lists cards newest first', async () => {
+    const root = tmpRoot();
+    const first = await writeCard(root, { body: 'older', tags: [], images: [] });
+    await new Promise((r) => setTimeout(r, 1100));
+    const second = await writeCard(root, { body: 'newer', tags: [], images: [] });
+    const all = await listCards(root);
+    expect(all.map((c) => c.id)).toEqual([second.id, first.id]);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('listCardFiles returns raw contents and a hash', async () => {
+    const root = tmpRoot();
+    const card = await writeCard(root, { body: 'hashme', tags: [], images: [] });
+    const files = await listCardFiles(root);
+    expect(files).toHaveLength(1);
+    expect(files[0].id).toBe(card.id);
+    expect(files[0].hash).toHaveLength(64);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('listCardFiles returns empty when cards dir is absent', async () => {
+    const root = tmpRoot();
+    expect(await listCardFiles(root)).toEqual([]);
+    rmSync(root, { recursive: true, force: true });
+  });
+});
