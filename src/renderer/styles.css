@@ -1,0 +1,15 @@
+* { box-sizing: border-box; }
+body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; color: #1a1a1a; }
+#tabs { display: flex; gap: 4px; padding: 8px; border-bottom: 1px solid #ddd; }
+#tabs button { padding: 6px 14px; border: 0; background: transparent; cursor: pointer; border-radius: 6px; }
+#tabs button.active { background: #f0c33c; }
+#view { padding: 16px; }
+textarea { width: 100%; min-height: 140px; padding: 10px; font: inherit; resize: vertical; }
+input[type=text] { width: 100%; padding: 8px; font: inherit; margin-top: 8px; }
+.primary { margin-top: 8px; padding: 8px 16px; background: #f0c33c; border: 0; border-radius: 6px; cursor: pointer; }
+.card { border: 1px solid #e2e2e2; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+.card .meta { color: #888; font-size: 12px; }
+.card .tag { display: inline-block; background: #f3f3f3; border-radius: 4px; padding: 1px 6px; margin-right: 4px; }
+.card mark { background: #f7e08c; }
+.hint { color: #888; }
+.thumbs img { max-width: 80px; max-height: 60px; margin-right: 6px; }
