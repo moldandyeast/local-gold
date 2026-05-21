@@ -1,20 +1,6 @@
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import matter from 'gray-matter';
 import type { Card } from '../shared/types';
-
-/** Build a URL-safe slug from the first six words of a body. */
-export function slugify(body: string): string {
-  const slug = body
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .split('-')
-    .filter(Boolean)
-    .slice(0, 6)
-    .join('-')
-    .slice(0, 40);
-  return slug || 'card';
-}
 
 /** sha256 hex digest of a string. */
 export function hashContent(raw: string): string {
@@ -71,13 +57,15 @@ function pad(n: number, width: number): string {
   return String(n).padStart(width, '0');
 }
 
-/** Build the filename stem "YYYYMMDD-HHMMSS-slug" for a card. */
-function cardStem(created: Date, body: string): string {
+/**
+ * Build the filename stem "YYYY-MM-DD-uid" for a card. The date groups cards
+ * for human browsing; the random UID keeps the name stable when the body is
+ * later edited (a body-derived slug would go stale).
+ */
+function cardStem(created: Date): string {
   const date =
-    `${created.getFullYear()}${pad(created.getMonth() + 1, 2)}${pad(created.getDate(), 2)}`;
-  const time =
-    `${pad(created.getHours(), 2)}${pad(created.getMinutes(), 2)}${pad(created.getSeconds(), 2)}`;
-  return `${date}-${time}-${slugify(body)}`;
+    `${created.getFullYear()}-${pad(created.getMonth() + 1, 2)}-${pad(created.getDate(), 2)}`;
+  return `${date}-${randomBytes(4).toString('hex')}`;
 }
 
 async function exists(path: string): Promise<boolean> {
@@ -89,13 +77,11 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
-/** Pick a stem whose `.md` file does not already exist, appending -2, -3, ... */
-async function uniqueStem(root: string, base: string): Promise<string> {
-  let stem = base;
-  let n = 1;
+/** A stem whose `.md` file does not already exist; regenerates the UID on collision. */
+async function uniqueStem(root: string, created: Date): Promise<string> {
+  let stem = cardStem(created);
   while (await exists(join(cardsDir(root), `${stem}.md`))) {
-    n += 1;
-    stem = `${base}-${n}`;
+    stem = cardStem(created);
   }
   return stem;
 }
@@ -105,7 +91,7 @@ export async function writeCard(root: string, input: NewCard): Promise<Card> {
   const created = new Date();
   await mkdir(cardsDir(root), { recursive: true });
   await mkdir(attachmentsDir(root), { recursive: true });
-  const stem = await uniqueStem(root, cardStem(created, input.body));
+  const stem = await uniqueStem(root, created);
 
   const attachments: string[] = [];
   for (let i = 0; i < input.images.length; i += 1) {

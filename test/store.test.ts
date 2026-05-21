@@ -16,17 +16,12 @@ describe('paths', () => {
   });
 });
 
-import { parseCard, serializeCard, slugify, hashContent } from '../src/main/store';
+import { parseCard, serializeCard, hashContent } from '../src/main/store';
 
 describe('store: serialize/parse', () => {
-  it('slugifies the first words of a body', () => {
-    expect(slugify('First thoughts on X!')).toBe('first-thoughts-on-x');
-    expect(slugify('   ')).toBe('card');
-  });
-
   it('round-trips a card through serialize then parse', () => {
     const card = {
-      id: '20260521-093000-hello',
+      id: '2026-05-21-a1b2c3d4',
       created: '2026-05-21T09:30:00.000Z',
       body: 'Hello world.\nSecond line.',
       tags: ['idea', 'research'],
@@ -72,7 +67,7 @@ describe('store: write/list/read', () => {
       tags: ['idea'],
       images: [{ name: 'pic.png', data: new Uint8Array([1, 2, 3]) }]
     });
-    expect(card.id).toMatch(/^\d{8}-\d{6}-a-captured-thought$/);
+    expect(card.id).toMatch(/^\d{4}-\d{2}-\d{2}-[0-9a-f]{8}$/);
     expect(card.attachments).toHaveLength(1);
     const read = await readCard(root, card.id);
     expect(read?.body).toBe('A captured thought');

@@ -1,6 +1,6 @@
 /** A stored insight card. */
 export interface Card {
-  /** Filename stem, e.g. "20260521-093000-first-thoughts". */
+  /** Filename stem "YYYY-MM-DD-<uid>", e.g. "2026-05-21-a3f8c1d2". */
   id: string;
   /** ISO 8601 creation timestamp. */
   created: string;

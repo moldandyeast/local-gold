@@ -72,15 +72,17 @@ can be deleted and rebuilt from the Markdown files at any time.
 
 ### Card file format
 
-Filename stem: `YYYYMMDD-HHMMSS-<slug>` where `<slug>` is derived from the first
-few words of the body. The stem is also the card's `id`.
+Filename stem: `YYYY-MM-DD-<uid>` where `<uid>` is a random 8-hex-character id.
+The stem is also the card's `id`. A random UID (rather than a body-derived slug)
+keeps the filename stable when the card body is later edited; the date prefix
+groups cards for human browsing, and the full timestamp lives in `created`.
 
 ```markdown
 ---
-id: 20260521-093000-first-thoughts-on-x
+id: 2026-05-21-a3f8c1d2
 created: 2026-05-21T09:30:00Z
 tags: [idea, research]
-attachments: [attachments/20260521-093000-first-thoughts-on-x-1.png]
+attachments: [attachments/2026-05-21-a3f8c1d2-1.png]
 ---
 
 Freeform Markdown body text. Links are plain URLs left inline.
