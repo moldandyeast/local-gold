@@ -1,4 +1,5 @@
 import { renderCapture } from './capture';
+import { renderLibrary } from './library';
 
 const view = document.getElementById('view')!;
 const tabCapture = document.getElementById('tab-capture')!;
@@ -16,7 +17,7 @@ tabCapture.addEventListener('click', () => {
 
 tabLibrary.addEventListener('click', () => {
   select(tabLibrary, tabCapture);
-  view.innerHTML = '<p class="hint">Library — added in Task 14.</p>';
+  renderLibrary(view);
 });
 
 renderCapture(view);
