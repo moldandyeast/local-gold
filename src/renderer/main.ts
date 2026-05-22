@@ -1,3 +1,4 @@
+import '@fontsource-variable/onest/index.css';
 import { renderCapture } from './capture';
 import { renderLibrary } from './library';
 
