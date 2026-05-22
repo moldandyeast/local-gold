@@ -6,6 +6,7 @@ import { upsertCard, getCard, listCards, rebuildIndex } from './index-db';
 import { writeCard, hashContent } from './store';
 import { hybridSearch } from './search';
 import { backfillEmbeddings } from './embeddings';
+import { synthesizeAnswer } from './answer';
 import { cardsDir } from './paths';
 import type { Ollama } from './ollama';
 import type { NewCard } from '../shared/types';
@@ -31,4 +32,16 @@ export function registerIpc(db: DB, root: string, ollama: Ollama, model: string)
   ipcMain.handle('index:rebuild', () => rebuildIndex(db, root));
 
   ipcMain.handle('ollama:status', () => ollama.health());
+
+  // Streaming: tokens flow back as answer:token, ending with done or error.
+  ipcMain.on('answer:ask', async (e, query: string) => {
+    try {
+      const result = await synthesizeAnswer(db, ollama, ollama, query, (chunk) => {
+        e.sender.send('answer:token', chunk);
+      });
+      e.sender.send('answer:done', result);
+    } catch (err) {
+      e.sender.send('answer:error', err instanceof Error ? err.message : String(err));
+    }
+  });
 }

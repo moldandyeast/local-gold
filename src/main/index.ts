@@ -29,7 +29,7 @@ app.whenReady().then(async () => {
   await mkdir(attachmentsDir(root), { recursive: true });
 
   const config = loadConfig(root);
-  const ollama = createOllama(config.ollamaUrl, config.embedModel);
+  const ollama = createOllama(config.ollamaUrl, config.embedModel, config.answerModel);
 
   const db = openDb(dbPath(root));
   initSchema(db);
