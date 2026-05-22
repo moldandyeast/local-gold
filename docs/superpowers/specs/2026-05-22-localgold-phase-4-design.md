@@ -62,11 +62,12 @@ Accents signal meaning; nothing is decorative. Tags render in neutral grey.
 
 ### Typography
 
-**Onest**, bundled locally. The `.woff2` files are committed under
-`src/renderer/fonts/` and declared with `@font-face` (weights 400/500/600/700).
-No CDN: LocalGold is local-first and must render correctly offline. `body`
-sets `font-family: 'Onest', -apple-system, system-ui, sans-serif` (the system
-fonts remain only as a fallback if a weight fails to load).
+**Onest**, bundled locally via the `@fontsource-variable/onest` npm package.
+The renderer imports the package's CSS; electron-vite/Vite bundles the
+`.woff2` into the build output, so the font ships inside the app — no CDN.
+LocalGold is local-first and must render correctly offline. `body` sets
+`font-family: 'Onest Variable', -apple-system, system-ui, sans-serif` (the
+system fonts remain only as a fallback if the font fails to load).
 
 ### Corners
 
@@ -78,8 +79,9 @@ tag — a near-square, sharp aesthetic.
 All changes are in `src/renderer/`. Class names and a few elements may be added
 where the current markup has nothing to hook styles onto; no logic changes.
 
-- **Shell** (`index.html`, `styles.css`) — `--bg` body in Onest; the tab bar
-  reads as muted text, the active tab in `--primary`.
+- **Shell** (`index.html`, `main.ts`, `styles.css`) — `main.ts` imports the
+  `@fontsource-variable/onest` CSS; `--bg` body in Onest; the tab bar reads as
+  muted text, the active tab in `--primary`.
 - **Capture** (`capture.ts`, `styles.css`) — `--card` textarea and tag input
   with 1px `--border` edges and a `--primary` focus border; a `--primary`
   "Save card" button; the status line shows "Saved." in `--ok`.
