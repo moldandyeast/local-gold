@@ -1,5 +1,5 @@
-import { ipcMain } from 'electron';
-import { join } from 'path';
+import { ipcMain, dialog } from 'electron';
+import { join, basename } from 'path';
 import { readFile } from 'fs/promises';
 import type { DB } from './index-db';
 import { upsertCard, getCard, listCards, rebuildIndex } from './index-db';
@@ -21,6 +21,24 @@ export function registerIpc(db: DB, root: string, ollama: Ollama, model: string)
     // Embed the new card in the background; never block the response.
     void backfillEmbeddings(db, ollama, model).catch(() => undefined);
     return card;
+  });
+
+  ipcMain.handle('dialog:pick-images', async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openFile', 'multiSelections'],
+      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] }]
+    });
+    if (result.canceled) return [];
+    const images: { name: string; data: Uint8Array }[] = [];
+    for (const filePath of result.filePaths) {
+      try {
+        const buf = await readFile(filePath);
+        images.push({ name: basename(filePath), data: new Uint8Array(buf) });
+      } catch {
+        // Skip a file that cannot be read; the rest still return.
+      }
+    }
+    return images;
   });
 
   ipcMain.handle('card:list', (_e, limit = 100, offset = 0) => listCards(db, limit, offset));

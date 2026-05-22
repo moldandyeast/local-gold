@@ -15,6 +15,7 @@ export interface LocalGoldApi {
   search(query: string): Promise<SearchResult[]>;
   rebuild(): Promise<void>;
   ollamaStatus(): Promise<OllamaStatus>;
+  pickImages(): Promise<NewCard['images']>;
   ask(query: string, onToken: (chunk: string) => void): Promise<AnswerResult>;
 }
 
@@ -25,6 +26,7 @@ const api: LocalGoldApi = {
   search: (query) => ipcRenderer.invoke('search:query', query),
   rebuild: () => ipcRenderer.invoke('index:rebuild'),
   ollamaStatus: () => ipcRenderer.invoke('ollama:status'),
+  pickImages: () => ipcRenderer.invoke('dialog:pick-images'),
   ask: (query, onToken) =>
     new Promise<AnswerResult>((resolve, reject) => {
       const onTok = (_e: unknown, chunk: string): void => onToken(chunk);
