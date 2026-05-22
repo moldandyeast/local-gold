@@ -4,6 +4,9 @@ import { mkdir } from 'fs/promises';
 import { rootDir, cardsDir, attachmentsDir, dbPath } from './paths';
 import { openDb, initSchema, rebuildIndex } from './index-db';
 import { registerIpc } from './ipc';
+import { loadConfig } from './config';
+import { createOllama } from './ollama';
+import { backfillEmbeddings } from './embeddings';
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -25,10 +28,16 @@ app.whenReady().then(async () => {
   await mkdir(cardsDir(root), { recursive: true });
   await mkdir(attachmentsDir(root), { recursive: true });
 
+  const config = loadConfig(root);
+  const ollama = createOllama(config.ollamaUrl, config.embedModel);
+
   const db = openDb(dbPath(root));
   initSchema(db);
   await rebuildIndex(db, root);
-  registerIpc(db, root);
+  registerIpc(db, root, ollama, config.embedModel);
+
+  // Backfill embeddings in the background — does not block the window.
+  void backfillEmbeddings(db, ollama, config.embedModel).catch(() => undefined);
 
   createWindow();
   app.on('activate', () => {
