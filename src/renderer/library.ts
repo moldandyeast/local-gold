@@ -67,13 +67,15 @@ export function renderLibrary(host: HTMLElement): void {
 
   async function showStatus(): Promise<void> {
     const status = await window.localgold.ollamaStatus();
-    if (status.reachable && status.hasEmbedModel) {
+    const healthy = status.reachable && status.hasEmbedModel;
+    if (healthy) {
       statusEl.textContent = 'Semantic search on';
     } else if (status.reachable) {
       statusEl.textContent = 'Semantic search off — run: ollama pull embeddinggemma';
     } else {
       statusEl.textContent = 'Semantic search offline — start Ollama';
     }
+    statusEl.className = healthy ? 'ok' : 'problem';
   }
 
   async function showAll(): Promise<void> {
@@ -116,7 +118,7 @@ export function renderLibrary(host: HTMLElement): void {
       textEl.classList.remove('generating');
       textEl.innerHTML =
         escapeHtml(raw) +
-        `<p class="hint">Answer unavailable — ${escapeHtml(errorHint(message))}</p>`;
+        `<p class="problem">Answer unavailable — ${escapeHtml(errorHint(message))}</p>`;
     }
   });
 
