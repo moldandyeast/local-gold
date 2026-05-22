@@ -18,3 +18,52 @@ describe('buildMessages', () => {
     expect(msgs[1].content).toContain('what?');
   });
 });
+
+import { synthesizeAnswer, ANSWER_CARD_COUNT } from '../src/main/answer';
+import { openDb, initSchema, upsertCard } from '../src/main/index-db';
+import type { Chatter, Embedder } from '../src/shared/types';
+
+const embedder: Embedder = { embed: async () => Float32Array.from([1, 0, 0]) };
+
+/** Chatter that emits a fixed list of tokens. */
+function fakeChatter(tokens: string[]): Chatter {
+  return {
+    chat: async (_messages, onToken) => {
+      for (const t of tokens) onToken(t);
+    }
+  };
+}
+
+describe('synthesizeAnswer', () => {
+  it('streams tokens and returns the assembled answer with sources', async () => {
+    const db = openDb(':memory:');
+    initSchema(db);
+    upsertCard(db, card('c1', 'a shared topic note'), '/p/c1.md', 'h');
+    const chatter = fakeChatter(['Part one. ', 'Part two [1].']);
+    const got: string[] = [];
+    const result = await synthesizeAnswer(db, embedder, chatter, 'shared', (c) => got.push(c));
+    expect(got).toEqual(['Part one. ', 'Part two [1].']);
+    expect(result.answer).toBe('Part one. Part two [1].');
+    expect(result.sources.map((c) => c.id)).toEqual(['c1']);
+    db.close();
+  });
+
+  it('uses at most the top ANSWER_CARD_COUNT cards', async () => {
+    const db = openDb(':memory:');
+    initSchema(db);
+    for (let i = 0; i < ANSWER_CARD_COUNT + 4; i += 1) {
+      upsertCard(db, card(`c${i}`, `shared topic note ${i}`), `/p/c${i}.md`, 'h');
+    }
+    const result = await synthesizeAnswer(db, embedder, fakeChatter(['x']), 'shared', () => undefined);
+    expect(result.sources).toHaveLength(ANSWER_CARD_COUNT);
+    db.close();
+  });
+
+  it('returns an empty answer when nothing matches', async () => {
+    const db = openDb(':memory:');
+    initSchema(db);
+    const result = await synthesizeAnswer(db, embedder, fakeChatter(['x']), 'absent', () => undefined);
+    expect(result).toEqual({ answer: '', sources: [] });
+    db.close();
+  });
+});

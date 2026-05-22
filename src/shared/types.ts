@@ -49,3 +49,11 @@ export interface ChatMessage {
 export interface Chatter {
   chat(messages: ChatMessage[], onToken: (chunk: string) => void): Promise<void>;
 }
+
+/** A synthesized answer and the source cards it was grounded in. */
+export interface AnswerResult {
+  /** The full answer text, with inline [n] citation markers. */
+  answer: string;
+  /** The cards passed to the model, in [1..n] order. */
+  sources: Card[];
+}
