@@ -37,6 +37,13 @@ export function initSchema(db: DB): void {
       INSERT INTO cards_fts(rowid, body, tags) VALUES (new.rowid, new.body, new.tags);
     END;
     CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS embeddings (
+      card_id      TEXT PRIMARY KEY REFERENCES cards(id) ON DELETE CASCADE,
+      model        TEXT NOT NULL,
+      dim          INTEGER NOT NULL,
+      content_hash TEXT NOT NULL,
+      vector       BLOB NOT NULL
+    );
   `);
 }
 
@@ -155,4 +162,61 @@ export async function rebuildIndex(db: DB, root: string): Promise<void> {
   for (const id of known.keys()) {
     if (!onDisk.has(id)) deleteCard(db, id);
   }
+}
+
+/** Encode a Float32 vector as a SQLite BLOB. */
+function vectorToBlob(v: Float32Array): Buffer {
+  return Buffer.from(v.buffer, v.byteOffset, v.byteLength);
+}
+
+/** Decode a SQLite BLOB back into a Float32 vector (copying, so it is standalone). */
+function blobToVector(buf: Buffer): Float32Array {
+  return new Float32Array(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
+}
+
+/** Insert or replace a card's embedding. */
+export function upsertEmbedding(
+  db: DB,
+  cardId: string,
+  model: string,
+  dim: number,
+  contentHash: string,
+  vector: Float32Array
+): void {
+  db.prepare(
+    `INSERT INTO embeddings (card_id, model, dim, content_hash, vector)
+     VALUES (@card_id, @model, @dim, @content_hash, @vector)
+     ON CONFLICT(card_id) DO UPDATE SET
+       model=@model, dim=@dim, content_hash=@content_hash, vector=@vector`
+  ).run({
+    card_id: cardId,
+    model,
+    dim,
+    content_hash: contentHash,
+    vector: vectorToBlob(vector)
+  });
+}
+
+/** Every stored embedding, as card id + decoded vector. */
+export function getEmbeddings(db: DB): { cardId: string; vector: Float32Array }[] {
+  const rows = db.prepare('SELECT card_id, vector FROM embeddings').all() as {
+    card_id: string;
+    vector: Buffer;
+  }[];
+  return rows.map((r) => ({ cardId: r.card_id, vector: blobToVector(r.vector) }));
+}
+
+/** Cards whose embedding is missing, stale (content changed), or from another model. */
+export function staleCards(
+  db: DB,
+  model: string
+): { id: string; body: string; contentHash: string }[] {
+  const rows = db
+    .prepare(
+      `SELECT c.id AS id, c.body AS body, c.content_hash AS contentHash
+       FROM cards c LEFT JOIN embeddings e ON e.card_id = c.id
+       WHERE e.card_id IS NULL OR e.content_hash != c.content_hash OR e.model != ?`
+    )
+    .all(model) as { id: string; body: string; contentHash: string }[];
+  return rows;
 }

@@ -145,3 +145,71 @@ describe('index-db: rebuild', () => {
     db.close();
   });
 });
+
+import { upsertEmbedding, getEmbeddings, staleCards } from '../src/main/index-db';
+
+describe('index-db: embeddings', () => {
+  it('stores and reads back an embedding vector', () => {
+    const db = openDb(':memory:');
+    initSchema(db);
+    upsertCard(db, sampleCard(), '/p/c1.md', 'hash1');
+    upsertEmbedding(db, 'c1', 'embeddinggemma', 3, 'hash1', Float32Array.from([0.1, 0.2, 0.3]));
+    const rows = getEmbeddings(db);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].cardId).toBe('c1');
+    expect(Array.from(rows[0].vector)).toEqual([
+      Math.fround(0.1), Math.fround(0.2), Math.fround(0.3)
+    ]);
+    db.close();
+  });
+
+  it('upsertEmbedding replaces an existing vector', () => {
+    const db = openDb(':memory:');
+    initSchema(db);
+    upsertCard(db, sampleCard(), '/p/c1.md', 'hash1');
+    upsertEmbedding(db, 'c1', 'embeddinggemma', 2, 'hash1', Float32Array.from([1, 0]));
+    upsertEmbedding(db, 'c1', 'embeddinggemma', 2, 'hash2', Float32Array.from([0, 1]));
+    const rows = getEmbeddings(db);
+    expect(rows).toHaveLength(1);
+    expect(Array.from(rows[0].vector)).toEqual([0, 1]);
+    db.close();
+  });
+
+  it('staleCards lists cards with no embedding', () => {
+    const db = openDb(':memory:');
+    initSchema(db);
+    upsertCard(db, sampleCard(), '/p/c1.md', 'hash1');
+    expect(staleCards(db, 'embeddinggemma').map((c) => c.id)).toEqual(['c1']);
+    db.close();
+  });
+
+  it('staleCards lists cards whose content changed since embedding', () => {
+    const db = openDb(':memory:');
+    initSchema(db);
+    upsertCard(db, sampleCard(), '/p/c1.md', 'hash1');
+    upsertEmbedding(db, 'c1', 'embeddinggemma', 1, 'hash1', Float32Array.from([1]));
+    expect(staleCards(db, 'embeddinggemma')).toEqual([]);
+    upsertCard(db, sampleCard({ body: 'edited' }), '/p/c1.md', 'hash2');
+    expect(staleCards(db, 'embeddinggemma').map((c) => c.id)).toEqual(['c1']);
+    db.close();
+  });
+
+  it('staleCards lists cards embedded with a different model', () => {
+    const db = openDb(':memory:');
+    initSchema(db);
+    upsertCard(db, sampleCard(), '/p/c1.md', 'hash1');
+    upsertEmbedding(db, 'c1', 'old-model', 1, 'hash1', Float32Array.from([1]));
+    expect(staleCards(db, 'embeddinggemma').map((c) => c.id)).toEqual(['c1']);
+    db.close();
+  });
+
+  it('staleCards returns id, body and contentHash for backfill', () => {
+    const db = openDb(':memory:');
+    initSchema(db);
+    upsertCard(db, sampleCard({ body: 'fox body' }), '/p/c1.md', 'hash1');
+    expect(staleCards(db, 'embeddinggemma')[0]).toEqual({
+      id: 'c1', body: 'fox body', contentHash: 'hash1'
+    });
+    db.close();
+  });
+});
