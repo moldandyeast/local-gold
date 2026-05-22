@@ -34,6 +34,7 @@ export function renderCapture(host: HTMLElement): void {
     const text = body.value.trim();
     if (!text) {
       status.textContent = 'Nothing to save.';
+      status.className = 'hint';
       return;
     }
     const tagList = tags.value
@@ -46,5 +47,6 @@ export function renderCapture(host: HTMLElement): void {
     images.length = 0;
     thumbs.innerHTML = '';
     status.textContent = 'Saved.';
+    status.className = 'ok';
   });
 }
