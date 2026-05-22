@@ -24,6 +24,11 @@ function createWindow(): void {
 }
 
 app.whenReady().then(async () => {
+  // macOS dock icon (dev runs; a packaged build would set this via its config).
+  if (process.platform === 'darwin' && app.dock) {
+    app.dock.setIcon(join(app.getAppPath(), 'build', 'icon.png'));
+  }
+
   const root = rootDir();
   await mkdir(cardsDir(root), { recursive: true });
   await mkdir(attachmentsDir(root), { recursive: true });
