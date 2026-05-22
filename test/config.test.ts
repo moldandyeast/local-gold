@@ -13,7 +13,8 @@ describe('config', () => {
     const root = tmpRoot();
     expect(loadConfig(root)).toEqual({
       ollamaUrl: 'http://localhost:11434',
-      embedModel: 'embeddinggemma'
+      embedModel: 'embeddinggemma',
+      answerModel: 'gemma4:e4b'
     });
     rmSync(root, { recursive: true, force: true });
   });
@@ -26,7 +27,8 @@ describe('config', () => {
     );
     expect(loadConfig(root)).toEqual({
       ollamaUrl: 'http://host:9999',
-      embedModel: 'other'
+      embedModel: 'other',
+      answerModel: 'gemma4:e4b'
     });
     rmSync(root, { recursive: true, force: true });
   });
@@ -36,8 +38,24 @@ describe('config', () => {
     writeFileSync(join(root, 'config.json'), '{ not valid json');
     expect(loadConfig(root)).toEqual({
       ollamaUrl: 'http://localhost:11434',
-      embedModel: 'embeddinggemma'
+      embedModel: 'embeddinggemma',
+      answerModel: 'gemma4:e4b'
     });
+    rmSync(root, { recursive: true, force: true });
+  });
+});
+
+describe('config: answerModel', () => {
+  it('defaults answerModel to gemma4:e4b', () => {
+    const root = tmpRoot();
+    expect(loadConfig(root).answerModel).toBe('gemma4:e4b');
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('reads answerModel from config.json', () => {
+    const root = tmpRoot();
+    writeFileSync(join(root, 'config.json'), JSON.stringify({ answerModel: 'gemma4:31b' }));
+    expect(loadConfig(root).answerModel).toBe('gemma4:31b');
     rmSync(root, { recursive: true, force: true });
   });
 });
