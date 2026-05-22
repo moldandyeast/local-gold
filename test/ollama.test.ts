@@ -65,3 +65,30 @@ describe('ollama: embed', () => {
     await expect(ollama.embed('hello', 'query')).rejects.toThrow();
   });
 });
+
+describe('ollama: chat', () => {
+  it('streams tokens from /api/chat in order', async () => {
+    const url = await stubOllama((reqUrl, res) => {
+      if (reqUrl === '/api/chat') {
+        res.write(JSON.stringify({ message: { content: 'Hello' } }) + '\n');
+        res.write(JSON.stringify({ message: { content: ' world' }, done: true }) + '\n');
+        res.end();
+      }
+    });
+    const ollama = createOllama(url, 'embeddinggemma', 'gemma4:e4b');
+    const chunks: string[] = [];
+    await ollama.chat([{ role: 'user', content: 'hi' }], (c) => chunks.push(c));
+    expect(chunks).toEqual(['Hello', ' world']);
+  });
+
+  it('throws when chat returns a non-200', async () => {
+    const url = await stubOllama((reqUrl, res) => {
+      res.statusCode = 500;
+      res.end('err');
+    });
+    const ollama = createOllama(url, 'embeddinggemma', 'gemma4:e4b');
+    await expect(
+      ollama.chat([{ role: 'user', content: 'hi' }], () => undefined)
+    ).rejects.toThrow();
+  });
+});

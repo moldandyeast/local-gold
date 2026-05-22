@@ -38,3 +38,14 @@ export interface OllamaStatus {
   /** The configured embedding model is pulled. */
   hasEmbedModel: boolean;
 }
+
+/** One message in a chat exchange. */
+export interface ChatMessage {
+  role: 'system' | 'user';
+  content: string;
+}
+
+/** A streaming chat model. `onToken` is called with each text chunk. */
+export interface Chatter {
+  chat(messages: ChatMessage[], onToken: (chunk: string) => void): Promise<void>;
+}
