@@ -1,5 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { Card, NewCard, SearchResult, OllamaStatus } from '../shared/types';
+import type {
+  Card,
+  NewCard,
+  SearchResult,
+  OllamaStatus,
+  AnswerResult
+} from '../shared/types';
 
 /** The API exposed to the renderer as `window.localgold`. */
 export interface LocalGoldApi {
@@ -9,6 +15,7 @@ export interface LocalGoldApi {
   search(query: string): Promise<SearchResult[]>;
   rebuild(): Promise<void>;
   ollamaStatus(): Promise<OllamaStatus>;
+  ask(query: string, onToken: (chunk: string) => void): Promise<AnswerResult>;
 }
 
 const api: LocalGoldApi = {
@@ -17,7 +24,28 @@ const api: LocalGoldApi = {
   getCard: (id) => ipcRenderer.invoke('card:get', id),
   search: (query) => ipcRenderer.invoke('search:query', query),
   rebuild: () => ipcRenderer.invoke('index:rebuild'),
-  ollamaStatus: () => ipcRenderer.invoke('ollama:status')
+  ollamaStatus: () => ipcRenderer.invoke('ollama:status'),
+  ask: (query, onToken) =>
+    new Promise<AnswerResult>((resolve, reject) => {
+      const onTok = (_e: unknown, chunk: string): void => onToken(chunk);
+      const onDone = (_e: unknown, result: AnswerResult): void => {
+        cleanup();
+        resolve(result);
+      };
+      const onErr = (_e: unknown, message: string): void => {
+        cleanup();
+        reject(new Error(message));
+      };
+      function cleanup(): void {
+        ipcRenderer.off('answer:token', onTok);
+        ipcRenderer.off('answer:done', onDone);
+        ipcRenderer.off('answer:error', onErr);
+      }
+      ipcRenderer.on('answer:token', onTok);
+      ipcRenderer.once('answer:done', onDone);
+      ipcRenderer.once('answer:error', onErr);
+      ipcRenderer.send('answer:ask', query);
+    })
 };
 
 contextBridge.exposeInMainWorld('localgold', api);
