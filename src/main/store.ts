@@ -15,6 +15,9 @@ export function serializeCard(card: Card): string {
     `created: ${card.created}`,
     `tags: [${card.tags.join(', ')}]`
   ];
+  if (card.url) {
+    lines.push(`url: ${card.url}`);
+  }
   if (card.attachments.length > 0) {
     lines.push(`attachments: [${card.attachments.join(', ')}]`);
   }
@@ -31,13 +34,17 @@ export function parseCard(raw: string, fallbackId: string): Card {
       : data.created instanceof Date
         ? data.created.toISOString()
         : new Date(0).toISOString();
-  return {
+  const card: Card = {
     id: typeof data.id === 'string' ? data.id : fallbackId,
     created,
     body: content.trim(),
     tags: Array.isArray(data.tags) ? data.tags.map(String) : [],
     attachments: Array.isArray(data.attachments) ? data.attachments.map(String) : []
   };
+  if (typeof data.url === 'string' && data.url.trim()) {
+    card.url = data.url.trim();
+  }
+  return card;
 }
 
 import { mkdir, readdir, readFile, writeFile, access } from 'fs/promises';
@@ -109,6 +116,9 @@ export async function writeCard(root: string, input: NewCard): Promise<Card> {
     tags: input.tags,
     attachments
   };
+  if (input.url && input.url.trim()) {
+    card.url = input.url.trim();
+  }
   await writeFile(join(cardsDir(root), `${stem}.md`), serializeCard(card), 'utf8');
   return card;
 }

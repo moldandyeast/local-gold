@@ -100,3 +100,43 @@ describe('store: write/list/read', () => {
     rmSync(root, { recursive: true, force: true });
   });
 });
+
+describe('store: url field', () => {
+  it('round-trips a card that has a url', () => {
+    const card = {
+      id: '2026-05-22-abcd1234',
+      created: '2026-05-22T09:00:00.000Z',
+      body: 'a thought',
+      tags: ['idea'],
+      attachments: [],
+      url: 'https://example.com/article'
+    };
+    expect(parseCard(serializeCard(card), 'fallback')).toEqual(card);
+  });
+
+  it('omits the url line when the card has none', () => {
+    const card = {
+      id: 'x',
+      created: '2026-01-01T00:00:00.000Z',
+      body: 'a thought',
+      tags: [],
+      attachments: []
+    };
+    const text = serializeCard(card);
+    expect(text).not.toContain('url:');
+    expect(parseCard(text, 'x')).toEqual(card);
+  });
+
+  it('writeCard persists a provided url', async () => {
+    const root = mkdtempSync(pjoin(tmpdir(), 'lg-'));
+    const card = await writeCard(root, {
+      body: 'b',
+      tags: [],
+      images: [],
+      url: 'https://example.com/a'
+    });
+    expect(card.url).toBe('https://example.com/a');
+    expect((await readCard(root, card.id))?.url).toBe('https://example.com/a');
+    rmSync(root, { recursive: true, force: true });
+  });
+});

@@ -10,6 +10,8 @@ export interface Card {
   tags: string[];
   /** Attachment paths relative to the LocalGold root, e.g. "attachments/x-1.png". */
   attachments: string[];
+  /** Optional source URL for the card. */
+  url?: string;
 }
 
 /** A card submitted from the renderer, before it is written to disk. */
@@ -17,6 +19,7 @@ export interface NewCard {
   body: string;
   tags: string[];
   images: { name: string; data: Uint8Array }[];
+  url?: string;
 }
 
 /** A search hit: the card, a relevance score, and a highlighted snippet. */
