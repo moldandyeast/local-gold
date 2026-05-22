@@ -18,6 +18,7 @@ export function initSchema(db: DB): void {
       body         TEXT NOT NULL,
       tags         TEXT NOT NULL DEFAULT '[]',
       attachments  TEXT NOT NULL DEFAULT '[]',
+      url          TEXT NOT NULL DEFAULT '',
       file_path    TEXT NOT NULL,
       content_hash TEXT NOT NULL
     );
@@ -45,6 +46,13 @@ export function initSchema(db: DB): void {
       vector       BLOB NOT NULL
     );
   `);
+
+  // Upgrade an index.db created before the url column existed.
+  try {
+    db.exec("ALTER TABLE cards ADD COLUMN url TEXT NOT NULL DEFAULT ''");
+  } catch {
+    // Column already exists — nothing to do.
+  }
 }
 
 import type { Card } from '../shared/types';
@@ -55,32 +63,36 @@ interface CardRow {
   body: string;
   tags: string;
   attachments: string;
+  url: string;
 }
 
 function rowToCard(row: CardRow): Card {
-  return {
+  const card: Card = {
     id: row.id,
     created: row.created,
     body: row.body,
     tags: JSON.parse(row.tags),
     attachments: JSON.parse(row.attachments)
   };
+  if (row.url) card.url = row.url;
+  return card;
 }
 
 /** Insert a card, or update it in place if its id already exists. */
 export function upsertCard(db: DB, card: Card, filePath: string, hash: string): void {
   db.prepare(
-    `INSERT INTO cards (id, created, body, tags, attachments, file_path, content_hash)
-     VALUES (@id, @created, @body, @tags, @attachments, @file_path, @content_hash)
+    `INSERT INTO cards (id, created, body, tags, attachments, url, file_path, content_hash)
+     VALUES (@id, @created, @body, @tags, @attachments, @url, @file_path, @content_hash)
      ON CONFLICT(id) DO UPDATE SET
        created=@created, body=@body, tags=@tags, attachments=@attachments,
-       file_path=@file_path, content_hash=@content_hash`
+       url=@url, file_path=@file_path, content_hash=@content_hash`
   ).run({
     id: card.id,
     created: card.created,
     body: card.body,
     tags: JSON.stringify(card.tags),
     attachments: JSON.stringify(card.attachments),
+    url: card.url ?? '',
     file_path: filePath,
     content_hash: hash
   });
@@ -94,7 +106,7 @@ export function deleteCard(db: DB, id: string): void {
 /** Fetch a card by id, or null. */
 export function getCard(db: DB, id: string): Card | null {
   const row = db
-    .prepare('SELECT id, created, body, tags, attachments FROM cards WHERE id = ?')
+    .prepare('SELECT id, created, body, tags, attachments, url FROM cards WHERE id = ?')
     .get(id) as CardRow | undefined;
   return row ? rowToCard(row) : null;
 }
@@ -103,7 +115,7 @@ export function getCard(db: DB, id: string): Card | null {
 export function listCards(db: DB, limit: number, offset: number): Card[] {
   const rows = db
     .prepare(
-      'SELECT id, created, body, tags, attachments FROM cards ORDER BY created DESC LIMIT ? OFFSET ?'
+      'SELECT id, created, body, tags, attachments, url FROM cards ORDER BY created DESC LIMIT ? OFFSET ?'
     )
     .all(limit, offset) as CardRow[];
   return rows.map(rowToCard);

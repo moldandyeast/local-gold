@@ -213,3 +213,21 @@ describe('index-db: embeddings', () => {
     db.close();
   });
 });
+
+describe('index-db: url', () => {
+  it('upsert then getCard preserves a url', () => {
+    const db = openDb(':memory:');
+    initSchema(db);
+    upsertCard(db, sampleCard({ url: 'https://example.com' }), '/p/c1.md', 'h');
+    expect(getCard(db, 'c1')?.url).toBe('https://example.com');
+    db.close();
+  });
+
+  it('a card with no url reads back without one', () => {
+    const db = openDb(':memory:');
+    initSchema(db);
+    upsertCard(db, sampleCard(), '/p/c1.md', 'h');
+    expect(getCard(db, 'c1')?.url).toBeUndefined();
+    db.close();
+  });
+});
