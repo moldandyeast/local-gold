@@ -25,3 +25,16 @@ export interface SearchResult {
   score: number;
   snippet: string;
 }
+
+/** Embeds text into a vector. `kind` selects EmbeddingGemma's prompt. */
+export interface Embedder {
+  embed(text: string, kind: 'query' | 'document'): Promise<Float32Array>;
+}
+
+/** Reachability of the local Ollama embedding service. */
+export interface OllamaStatus {
+  /** Ollama answered an HTTP request. */
+  reachable: boolean;
+  /** The configured embedding model is pulled. */
+  hasEmbedModel: boolean;
+}

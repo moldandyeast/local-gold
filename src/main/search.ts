@@ -15,3 +15,31 @@ export function keywordSearch(db: DB, query: string): SearchResult[] {
   }
   return results;
 }
+
+import { getEmbeddings } from './index-db';
+import { cosineSimilarity } from './rank';
+import type { Embedder } from '../shared/types';
+
+/**
+ * Semantic search: embed the query and rank cards by cosine similarity to
+ * their stored embeddings. Brute-force over all vectors; top 50 returned.
+ */
+export async function semanticSearch(
+  db: DB,
+  embedder: Embedder,
+  query: string
+): Promise<SearchResult[]> {
+  const queryVec = await embedder.embed(query, 'query');
+  const scored = getEmbeddings(db)
+    .map((e) => ({ id: e.cardId, score: cosineSimilarity(queryVec, e.vector) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 50);
+
+  const results: SearchResult[] = [];
+  for (const s of scored) {
+    const card = getCard(db, s.id);
+    if (!card) continue;
+    results.push({ card, score: s.score, snippet: card.body.slice(0, 240) });
+  }
+  return results;
+}

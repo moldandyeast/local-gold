@@ -28,3 +28,39 @@ describe('search: keyword', () => {
     db.close();
   });
 });
+
+import { semanticSearch } from '../src/main/search';
+import { upsertEmbedding } from '../src/main/index-db';
+import type { Embedder } from '../src/shared/types';
+
+/** Fake embedder: returns a fixed vector per text, no network. */
+function fakeEmbedder(map: Record<string, number[]>): Embedder {
+  return {
+    embed: async (text) => Float32Array.from(map[text] ?? [0, 0, 0])
+  };
+}
+
+describe('search: semantic', () => {
+  it('ranks cards by cosine similarity to the query', async () => {
+    const db = openDb(':memory:');
+    initSchema(db);
+    upsertCard(db, card('near', 'near card'), '/p/near.md', 'h');
+    upsertCard(db, card('far', 'far card'), '/p/far.md', 'h');
+    upsertEmbedding(db, 'near', 'm', 3, 'h', Float32Array.from([1, 0, 0]));
+    upsertEmbedding(db, 'far', 'm', 3, 'h', Float32Array.from([0, 1, 0]));
+    const embedder = fakeEmbedder({ 'find this': [1, 0, 0] });
+    const results = await semanticSearch(db, embedder, 'find this');
+    expect(results[0].card.id).toBe('near');
+    expect(results[1].card.id).toBe('far');
+    expect(results[0].score).toBeGreaterThan(results[1].score);
+    db.close();
+  });
+
+  it('returns an empty array when there are no embeddings', async () => {
+    const db = openDb(':memory:');
+    initSchema(db);
+    const embedder = fakeEmbedder({ q: [1, 0, 0] });
+    expect(await semanticSearch(db, embedder, 'q')).toEqual([]);
+    db.close();
+  });
+});
