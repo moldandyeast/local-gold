@@ -23,11 +23,24 @@ function cardHtml(card: Card, snippet?: string): string {
 export function renderLibrary(host: HTMLElement): void {
   host.innerHTML = `
     <h2>Library</h2>
+    <div id="ollama-status" class="hint"></div>
     <input id="q" type="text" placeholder="Search cards…" />
     <div id="results"></div>
   `;
   const q = host.querySelector<HTMLInputElement>('#q')!;
   const results = host.querySelector<HTMLDivElement>('#results')!;
+  const statusEl = host.querySelector<HTMLDivElement>('#ollama-status')!;
+
+  async function showStatus(): Promise<void> {
+    const status = await window.localgold.ollamaStatus();
+    if (status.reachable && status.hasEmbedModel) {
+      statusEl.textContent = 'Semantic search on';
+    } else if (status.reachable) {
+      statusEl.textContent = 'Semantic search off — run: ollama pull embeddinggemma';
+    } else {
+      statusEl.textContent = 'Semantic search offline — start Ollama';
+    }
+  }
 
   async function showAll(): Promise<void> {
     const cards = await window.localgold.listCards();
@@ -48,5 +61,6 @@ export function renderLibrary(host: HTMLElement): void {
       : '<p class="hint">No matches.</p>';
   });
 
+  void showStatus();
   void showAll();
 }
