@@ -64,3 +64,47 @@ describe('search: semantic', () => {
     db.close();
   });
 });
+
+import { hybridSearch } from '../src/main/search';
+
+describe('search: hybrid', () => {
+  it('fuses keyword and semantic results into one ranking', async () => {
+    const db = openDb(':memory:');
+    initSchema(db);
+    upsertCard(db, card('kw', 'pricing strategy notes'), '/p/kw.md', 'h');
+    upsertCard(db, card('sem', 'how much should it cost'), '/p/sem.md', 'h');
+    upsertEmbedding(db, 'kw', 'm', 3, 'h', Float32Array.from([0, 1, 0]));
+    upsertEmbedding(db, 'sem', 'm', 3, 'h', Float32Array.from([1, 0, 0]));
+    const embedder = fakeEmbedder({ pricing: [1, 0, 0] });
+    const results = await hybridSearch(db, embedder, 'pricing');
+    const ids = results.map((r) => r.card.id);
+    expect(ids).toContain('kw');
+    expect(ids).toContain('sem');
+    db.close();
+  });
+
+  it('keeps the highlighted keyword snippet when a card matches both', async () => {
+    const db = openDb(':memory:');
+    initSchema(db);
+    upsertCard(db, card('c', 'pricing notes'), '/p/c.md', 'h');
+    upsertEmbedding(db, 'c', 'm', 3, 'h', Float32Array.from([1, 0, 0]));
+    const embedder = fakeEmbedder({ pricing: [1, 0, 0] });
+    const results = await hybridSearch(db, embedder, 'pricing');
+    expect(results[0].snippet).toContain('«pricing»');
+    db.close();
+  });
+
+  it('falls back to keyword results when the embedder throws', async () => {
+    const db = openDb(':memory:');
+    initSchema(db);
+    upsertCard(db, card('c', 'pricing notes'), '/p/c.md', 'h');
+    const broken: Embedder = {
+      embed: async () => {
+        throw new Error('Ollama unavailable');
+      }
+    };
+    const results = await hybridSearch(db, broken, 'pricing');
+    expect(results.map((r) => r.card.id)).toEqual(['c']);
+    db.close();
+  });
+});

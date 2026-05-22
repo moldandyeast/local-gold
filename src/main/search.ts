@@ -43,3 +43,40 @@ export async function semanticSearch(
   }
   return results;
 }
+
+import { reciprocalRankFusion } from './rank';
+
+/**
+ * Hybrid search: run keyword (FTS5) and semantic search, fuse the two
+ * rankings with Reciprocal Rank Fusion. If the embedder fails (Ollama
+ * unavailable), returns the keyword results alone.
+ */
+export async function hybridSearch(
+  db: DB,
+  embedder: Embedder,
+  query: string
+): Promise<SearchResult[]> {
+  const keyword = keywordSearch(db, query);
+  let semantic: SearchResult[] = [];
+  try {
+    semantic = await semanticSearch(db, embedder, query);
+  } catch {
+    semantic = [];
+  }
+
+  // Keyword first, so a card matching both keeps its highlighted snippet.
+  const byId = new Map<string, SearchResult>();
+  for (const r of [...keyword, ...semantic]) {
+    if (!byId.has(r.card.id)) byId.set(r.card.id, r);
+  }
+
+  const fused = reciprocalRankFusion([
+    keyword.map((r) => r.card.id),
+    semantic.map((r) => r.card.id)
+  ]);
+
+  return fused.map((f) => {
+    const base = byId.get(f.id)!;
+    return { card: base.card, score: f.score, snippet: base.snippet };
+  });
+}
