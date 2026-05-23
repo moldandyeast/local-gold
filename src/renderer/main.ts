@@ -1,24 +1,31 @@
 import '@fontsource-variable/onest/index.css';
 import { renderCapture } from './capture';
 import { renderLibrary } from './library';
+import { renderSettings } from './settings';
 
 const view = document.getElementById('view')!;
 const tabCapture = document.getElementById('tab-capture')!;
 const tabLibrary = document.getElementById('tab-library')!;
+const tabSettings = document.getElementById('tab-settings')!;
 
-function select(active: HTMLElement, other: HTMLElement): void {
+function selectTab(active: HTMLElement): void {
+  for (const t of [tabCapture, tabLibrary, tabSettings]) t.classList.remove('active');
   active.classList.add('active');
-  other.classList.remove('active');
 }
 
 tabCapture.addEventListener('click', () => {
-  select(tabCapture, tabLibrary);
+  selectTab(tabCapture);
   renderCapture(view);
 });
 
 tabLibrary.addEventListener('click', () => {
-  select(tabLibrary, tabCapture);
+  selectTab(tabLibrary);
   renderLibrary(view);
+});
+
+tabSettings.addEventListener('click', () => {
+  selectTab(tabSettings);
+  renderSettings(view);
 });
 
 renderCapture(view);

@@ -186,3 +186,18 @@ input[type='text']:focus {
   margin-right: 6px;
 }
 .play:hover { border-color: var(--primary); }
+.setting { margin-bottom: 18px; }
+.setting h3 { margin: 0 0 6px; font-size: 13px; }
+.path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: var(--fg);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+#fallback:empty { display: none; }
+#pending:empty { display: none; }
+#pending code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
