@@ -140,3 +140,20 @@ describe('store: url field', () => {
     rmSync(root, { recursive: true, force: true });
   });
 });
+
+describe('store: audios', () => {
+  it('writes audio attachments alongside images', async () => {
+    const root = mkdtempSync(pjoin(tmpdir(), 'lg-'));
+    const card = await writeCard(root, {
+      body: 'voice note',
+      tags: [],
+      images: [{ name: 'pic.png', data: new Uint8Array([9, 9, 9]) }],
+      audios: [{ name: 'voice.webm', data: new Uint8Array([1, 2, 3, 4]) }]
+    });
+    expect(card.attachments).toHaveLength(2);
+    const exts = card.attachments.map((a) => a.split('.').pop());
+    expect(exts).toContain('png');
+    expect(exts).toContain('webm');
+    rmSync(root, { recursive: true, force: true });
+  });
+});

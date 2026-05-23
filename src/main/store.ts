@@ -101,11 +101,19 @@ export async function writeCard(root: string, input: NewCard): Promise<Card> {
   const stem = await uniqueStem(root, created);
 
   const attachments: string[] = [];
-  for (let i = 0; i < input.images.length; i += 1) {
-    const img = input.images[i];
+  let n = 0;
+  for (const img of input.images) {
+    n += 1;
     const ext = extname(img.name) || '.png';
-    const rel = join('attachments', `${stem}-${i + 1}${ext}`);
+    const rel = join('attachments', `${stem}-${n}${ext}`);
     await writeFile(join(root, rel), Buffer.from(img.data));
+    attachments.push(rel);
+  }
+  for (const aud of input.audios ?? []) {
+    n += 1;
+    const ext = extname(aud.name) || '.webm';
+    const rel = join('attachments', `${stem}-${n}${ext}`);
+    await writeFile(join(root, rel), Buffer.from(aud.data));
     attachments.push(rel);
   }
 

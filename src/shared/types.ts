@@ -20,6 +20,7 @@ export interface NewCard {
   tags: string[];
   images: { name: string; data: Uint8Array }[];
   url?: string;
+  audios?: { name: string; data: Uint8Array }[];
 }
 
 /** A search hit: the card, a relevance score, and a highlighted snippet. */
