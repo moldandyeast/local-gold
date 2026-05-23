@@ -67,3 +67,9 @@ export interface Enrichment {
   description: string;
   tags: string[];
 }
+
+/** User preferences, persisted outside the data folder. */
+export interface Preferences {
+  /** Absolute path of the folder where cards / attachments / index.db live. */
+  dataDir: string;
+}
