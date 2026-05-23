@@ -54,3 +54,23 @@ describe('enrichUrl', () => {
     expect(result).toEqual({ description: '', tags: [] });
   });
 });
+
+import { enrichText } from '../src/main/enrich';
+
+describe('enrichText', () => {
+  it('returns the parsed tags from a completer', async () => {
+    const result = await enrichText(goodCompleter, 'a recorded thought about pricing');
+    expect(result.tags).toEqual(['one', 'two']);
+  });
+
+  it('returns an empty enrichment for a blank text', async () => {
+    expect(await enrichText(goodCompleter, '   ')).toEqual({ description: '', tags: [] });
+  });
+
+  it('returns an empty enrichment when the completer throws', async () => {
+    expect(await enrichText(throwingCompleter, 'something')).toEqual({
+      description: '',
+      tags: []
+    });
+  });
+});

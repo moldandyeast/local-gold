@@ -69,3 +69,23 @@ export async function enrichUrl(
     return EMPTY;
   }
 }
+
+/**
+ * Suggest tags (and optionally a short description) for a freeform text note,
+ * e.g. a voice-note transcript. Returns an empty Enrichment on blank input or
+ * any failure.
+ */
+export async function enrichText(ollama: Completer, text: string): Promise<Enrichment> {
+  if (!text.trim()) return EMPTY;
+  try {
+    const result = await ollama.complete(
+      'Read the following note and give 3-6 short lowercase topic tags. ' +
+        'You may also include a short description. Respond as JSON.\n\nNote:\n' +
+        text,
+      { format: SCHEMA }
+    );
+    return coerce(result);
+  } catch {
+    return EMPTY;
+  }
+}
