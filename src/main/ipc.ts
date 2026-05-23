@@ -1,4 +1,4 @@
-import { app, ipcMain, dialog, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import { join, basename } from 'path';
 import { readFile } from 'fs/promises';
 import type { DB } from './index-db';
@@ -10,6 +10,7 @@ import { synthesizeAnswer } from './answer';
 import { enrichImage, enrichUrl, enrichText } from './enrich';
 import { createWhisperTranscriber, runTranscription, type Transcriber } from './transcribe';
 import { loadPreferences, savePreferences } from './preferences';
+import { captureScreenshot } from './screenshot';
 import type { Preferences } from '../shared/types';
 
 let transcriberInstance: Transcriber | null = null;
@@ -106,6 +107,16 @@ export function registerIpc(
     });
     if (result.canceled || result.filePaths.length === 0) return null;
     return result.filePaths[0];
+  });
+
+  ipcMain.handle('screenshot:capture', async () => {
+    const win = BrowserWindow.getAllWindows()[0];
+    win?.hide();
+    try {
+      return await captureScreenshot();
+    } finally {
+      win?.show();
+    }
   });
 
   ipcMain.handle('shell:reveal-folder', async (_e, path: string) => {

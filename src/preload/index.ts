@@ -27,6 +27,7 @@ export interface LocalGoldApi {
   setPreferences(prefs: Preferences): Promise<Preferences>;
   getEffectiveDataDir(): Promise<string>;
   pickFolder(): Promise<string | null>;
+  captureScreenshot(): Promise<Uint8Array | null>;
   revealFolder(path: string): Promise<void>;
   quitApp(): Promise<void>;
   ask(query: string, onToken: (chunk: string) => void): Promise<AnswerResult>;
@@ -49,6 +50,7 @@ const api: LocalGoldApi = {
   setPreferences: (prefs) => ipcRenderer.invoke('preferences:set', prefs),
   getEffectiveDataDir: () => ipcRenderer.invoke('runtime:data-dir'),
   pickFolder: () => ipcRenderer.invoke('dialog:pick-folder'),
+  captureScreenshot: () => ipcRenderer.invoke('screenshot:capture'),
   revealFolder: (path) => ipcRenderer.invoke('shell:reveal-folder', path),
   quitApp: () => ipcRenderer.invoke('app:quit'),
   ask: (query, onToken) =>
