@@ -173,3 +173,16 @@ input[type='text']:focus {
   padding: 2px 8px;
   margin-right: 6px;
 }
+.audios { margin-top: 8px; }
+.play {
+  padding: 3px 9px;
+  background: transparent;
+  color: var(--primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  margin-right: 6px;
+}
+.play:hover { border-color: var(--primary); }

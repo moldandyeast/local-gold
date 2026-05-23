@@ -10,13 +10,18 @@ function cardHtml(card: Card, snippet?: string): string {
   const text = snippet
     ? escapeHtml(snippet).replace(/«/g, '<mark>').replace(/»/g, '</mark>')
     : escapeHtml(card.body.slice(0, 240));
-  const attach = card.attachments.length
-    ? `<div class="meta">${card.attachments.length} image(s) attached</div>`
+  const audioRels = card.attachments.filter((a) => /\.(webm|m4a|mp3|wav|ogg)$/i.test(a));
+  const imageCount = card.attachments.length - audioRels.length;
+  const imageMeta = imageCount
+    ? `<div class="meta">${imageCount} image(s) attached</div>`
     : '';
+  const audios = audioRels
+    .map((a) => `<button class="play" data-rel="${escapeHtml(a)}">▶ Play</button>`)
+    .join('');
   return `<div class="card" data-card-id="${escapeHtml(card.id)}">
     <div class="meta">${escapeHtml(card.created)}</div>
     <div>${text}</div>
-    <div>${tags}</div>${attach}
+    <div>${tags}</div>${imageMeta}${audios ? `<div class="audios">${audios}</div>` : ''}
   </div>`;
 }
 
@@ -120,6 +125,18 @@ export function renderLibrary(host: HTMLElement): void {
         escapeHtml(raw) +
         `<p class="problem">Answer unavailable — ${escapeHtml(errorHint(message))}</p>`;
     }
+  });
+
+  results.addEventListener('click', async (e) => {
+    const target = e.target as HTMLElement;
+    if (!target.classList.contains('play')) return;
+    const rel = target.getAttribute('data-rel');
+    if (!rel) return;
+    const bytes = await window.localgold.readAttachment(rel);
+    const audio = new Audio(
+      URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'audio/webm' }))
+    );
+    void audio.play();
   });
 
   answerEl.addEventListener('click', (e) => {
