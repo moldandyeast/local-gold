@@ -44,10 +44,11 @@ export function renderSettings(host: HTMLElement): void {
     if (picked === effective) return;
     await window.localgold.setPreferences({ dataDir: picked });
     pendingEl.innerHTML =
-      `<p class="hint">Data folder will change to <code>${escapeHtml(picked)}</code> ` +
-      `on restart.</p><button class="primary" id="restart">Restart now</button>`;
-    pendingEl.querySelector<HTMLButtonElement>('#restart')!.addEventListener('click', () => {
-      void window.localgold.restartApp();
+      `<p class="hint">Saved. Quit LocalGold and reopen it to switch to ` +
+      `<code>${escapeHtml(picked)}</code>.</p>` +
+      `<button class="primary" id="quit">Quit LocalGold</button>`;
+    pendingEl.querySelector<HTMLButtonElement>('#quit')!.addEventListener('click', () => {
+      void window.localgold.quitApp();
     });
   });
 

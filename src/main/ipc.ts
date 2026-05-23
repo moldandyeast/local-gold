@@ -112,9 +112,8 @@ export function registerIpc(
     await shell.openPath(path);
   });
 
-  ipcMain.handle('app:restart', () => {
-    app.relaunch();
-    app.exit(0);
+  ipcMain.handle('app:quit', () => {
+    app.quit();
   });
 
   // Streaming: tokens flow back as answer:token, ending with done or error.

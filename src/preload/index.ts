@@ -28,7 +28,7 @@ export interface LocalGoldApi {
   getEffectiveDataDir(): Promise<string>;
   pickFolder(): Promise<string | null>;
   revealFolder(path: string): Promise<void>;
-  restartApp(): Promise<void>;
+  quitApp(): Promise<void>;
   ask(query: string, onToken: (chunk: string) => void): Promise<AnswerResult>;
 }
 
@@ -50,7 +50,7 @@ const api: LocalGoldApi = {
   getEffectiveDataDir: () => ipcRenderer.invoke('runtime:data-dir'),
   pickFolder: () => ipcRenderer.invoke('dialog:pick-folder'),
   revealFolder: (path) => ipcRenderer.invoke('shell:reveal-folder', path),
-  restartApp: () => ipcRenderer.invoke('app:restart'),
+  quitApp: () => ipcRenderer.invoke('app:quit'),
   ask: (query, onToken) =>
     new Promise<AnswerResult>((resolve, reject) => {
       const onTok = (_e: unknown, chunk: string): void => onToken(chunk);
