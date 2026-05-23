@@ -1,7 +1,8 @@
 import { app, BrowserWindow } from 'electron';
 import { join } from 'path';
 import { mkdir } from 'fs/promises';
-import { rootDir, cardsDir, attachmentsDir, dbPath } from './paths';
+import { cardsDir, attachmentsDir, dbPath } from './paths';
+import { loadPreferences, defaultDataDir } from './preferences';
 import { openDb, initSchema, rebuildIndex } from './index-db';
 import { registerIpc } from './ipc';
 import { loadConfig } from './config';
@@ -29,9 +30,19 @@ app.whenReady().then(async () => {
     app.dock.setIcon(join(app.getAppPath(), 'build', 'icon.png'));
   }
 
-  const root = rootDir();
-  await mkdir(cardsDir(root), { recursive: true });
-  await mkdir(attachmentsDir(root), { recursive: true });
+  const userDataDir = app.getPath('userData');
+  const prefs = loadPreferences(userDataDir);
+  let root = prefs.dataDir;
+  try {
+    await mkdir(cardsDir(root), { recursive: true });
+    await mkdir(attachmentsDir(root), { recursive: true });
+  } catch {
+    // The chosen folder is unusable — fall back to the default so the app
+    // still starts. Settings will surface the mismatch.
+    root = defaultDataDir();
+    await mkdir(cardsDir(root), { recursive: true });
+    await mkdir(attachmentsDir(root), { recursive: true });
+  }
 
   const config = loadConfig(root);
   const ollama = createOllama(config.ollamaUrl, config.embedModel, config.answerModel);
@@ -39,7 +50,7 @@ app.whenReady().then(async () => {
   const db = openDb(dbPath(root));
   initSchema(db);
   await rebuildIndex(db, root);
-  registerIpc(db, root, ollama, config.embedModel);
+  registerIpc(db, root, ollama, config.embedModel, userDataDir);
 
   // Backfill embeddings in the background — does not block the window.
   void backfillEmbeddings(db, ollama, config.embedModel).catch(() => undefined);
