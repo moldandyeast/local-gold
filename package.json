@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@fontsource-variable/onest": "^5.2.11",
+    "@huggingface/transformers": "^4.2.0",
     "better-sqlite3": "^11.8.1",
     "gray-matter": "^4.0.3"
   },
