@@ -7,6 +7,14 @@ import { writeCard, hashContent } from './store';
 import { hybridSearch } from './search';
 import { backfillEmbeddings } from './embeddings';
 import { synthesizeAnswer } from './answer';
+import { enrichImage, enrichUrl } from './enrich';
+
+/** Fetch a page's HTML, with an 8s timeout. */
+async function fetchPage(url: string): Promise<string> {
+  const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+  if (!res.ok) throw new Error(`fetch failed: HTTP ${res.status}`);
+  return res.text();
+}
 import { cardsDir } from './paths';
 import type { Ollama } from './ollama';
 import type { NewCard } from '../shared/types';
@@ -50,6 +58,10 @@ export function registerIpc(db: DB, root: string, ollama: Ollama, model: string)
   ipcMain.handle('index:rebuild', () => rebuildIndex(db, root));
 
   ipcMain.handle('ollama:status', () => ollama.health());
+
+  ipcMain.handle('enrich:image', (_e, data: Uint8Array) => enrichImage(ollama, data));
+
+  ipcMain.handle('enrich:url', (_e, url: string) => enrichUrl(ollama, fetchPage, url));
 
   // Streaming: tokens flow back as answer:token, ending with done or error.
   ipcMain.on('answer:ask', async (e, query: string) => {

@@ -4,7 +4,8 @@ import type {
   NewCard,
   SearchResult,
   OllamaStatus,
-  AnswerResult
+  AnswerResult,
+  Enrichment
 } from '../shared/types';
 
 /** The API exposed to the renderer as `window.localgold`. */
@@ -16,6 +17,8 @@ export interface LocalGoldApi {
   rebuild(): Promise<void>;
   ollamaStatus(): Promise<OllamaStatus>;
   pickImages(): Promise<NewCard['images']>;
+  enrichImage(data: Uint8Array): Promise<Enrichment>;
+  enrichUrl(url: string): Promise<Enrichment>;
   ask(query: string, onToken: (chunk: string) => void): Promise<AnswerResult>;
 }
 
@@ -27,6 +30,8 @@ const api: LocalGoldApi = {
   rebuild: () => ipcRenderer.invoke('index:rebuild'),
   ollamaStatus: () => ipcRenderer.invoke('ollama:status'),
   pickImages: () => ipcRenderer.invoke('dialog:pick-images'),
+  enrichImage: (data) => ipcRenderer.invoke('enrich:image', data),
+  enrichUrl: (url) => ipcRenderer.invoke('enrich:url', url),
   ask: (query, onToken) =>
     new Promise<AnswerResult>((resolve, reject) => {
       const onTok = (_e: unknown, chunk: string): void => onToken(chunk);
