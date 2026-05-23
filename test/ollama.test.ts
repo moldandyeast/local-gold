@@ -92,3 +92,25 @@ describe('ollama: chat', () => {
     ).rejects.toThrow();
   });
 });
+
+describe('ollama: complete', () => {
+  it('parses a JSON response from /api/generate', async () => {
+    const url = await stubOllama((reqUrl, res) => {
+      if (reqUrl === '/api/generate') {
+        res.end(JSON.stringify({ response: '{"description":"a cat","tags":["cat"]}' }));
+      }
+    });
+    const ollama = createOllama(url, 'embeddinggemma', 'gemma4:e4b');
+    const result = await ollama.complete('describe', { format: { type: 'object' } });
+    expect(result).toEqual({ description: 'a cat', tags: ['cat'] });
+  });
+
+  it('throws when generate returns a non-200', async () => {
+    const url = await stubOllama((_reqUrl, res) => {
+      res.statusCode = 500;
+      res.end('err');
+    });
+    const ollama = createOllama(url, 'embeddinggemma', 'gemma4:e4b');
+    await expect(ollama.complete('describe')).rejects.toThrow();
+  });
+});

@@ -11,6 +11,11 @@ const DOCUMENT_PREFIX = 'title: none | text: ';
 /** A local Ollama client: health check, embeddings, and streaming chat. */
 export interface Ollama extends Embedder, Chatter {
   health(): Promise<OllamaStatus>;
+  /** Non-streaming completion; with a JSON-schema `format`, returns parsed JSON. */
+  complete(
+    prompt: string,
+    opts?: { images?: string[]; format?: unknown }
+  ): Promise<unknown>;
 }
 
 /** Build an Ollama client for a base URL, embedding model and chat model. */
@@ -78,5 +83,26 @@ export function createOllama(
     }
   }
 
-  return { health, embed, chat };
+  async function complete(
+    prompt: string,
+    opts: { images?: string[]; format?: unknown } = {}
+  ): Promise<unknown> {
+    const res = await fetch(`${ollamaUrl}/api/generate`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: chatModel,
+        prompt,
+        images: opts.images,
+        format: opts.format,
+        stream: false
+      }),
+      signal: AbortSignal.timeout(120000)
+    });
+    if (!res.ok) throw new Error(`Ollama generate failed: HTTP ${res.status}`);
+    const data = (await res.json()) as { response?: string };
+    return JSON.parse(data.response ?? 'null');
+  }
+
+  return { health, embed, chat, complete };
 }
