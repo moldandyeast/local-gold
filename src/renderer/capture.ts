@@ -1,4 +1,5 @@
 import type { Enrichment, NewCard } from '../shared/types';
+import { decodeToPCM16k } from './audio';
 
 /** Render the capture view into `host`. */
 export function renderCapture(host: HTMLElement): void {
@@ -16,6 +17,10 @@ export function renderCapture(host: HTMLElement): void {
       <button class="secondary" id="pick">Choose images…</button>
       <span class="hint">or paste an image</span>
     </div>
+    <div class="row">
+      <button class="secondary record" id="record">🎙 Record</button>
+      <span id="record-timer" class="hint"></span>
+    </div>
     <button class="primary" id="save">Save card</button>
     <span id="status" class="hint"></span>
     <div id="enrich-status" class="hint"></div>
@@ -28,28 +33,34 @@ export function renderCapture(host: HTMLElement): void {
   const status = host.querySelector<HTMLSpanElement>('#status')!;
   const enrichBox = host.querySelector<HTMLInputElement>('#enrich-url')!;
   const enrichStatus = host.querySelector<HTMLDivElement>('#enrich-status')!;
-  const images: NewCard['images'] = [];
-  let lastEnrichedUrl = '';
+  const recordBtn = host.querySelector<HTMLButtonElement>('#record')!;
+  const timerEl = host.querySelector<HTMLSpanElement>('#record-timer')!;
 
-  /** Append a `## heading` description to the body and merge tags. */
+  const images: NewCard['images'] = [];
+  const audios: NonNullable<NewCard['audios']> = [];
+  let lastEnrichedUrl = '';
+  let recorder: MediaRecorder | null = null;
+  let recordStart = 0;
+  let recordTimer: number | undefined;
+
   function applyEnrichment(heading: string, enr: Enrichment): void {
     if (enr.description) {
       const prefix = body.value.trim() ? `${body.value.replace(/\s+$/, '')}\n\n` : '';
       body.value = `${prefix}## ${heading}\n${enr.description}`;
     }
-    if (enr.tags.length > 0) {
-      const current = tags.value
-        .split(',')
-        .map((t) => t.trim())
-        .filter(Boolean);
-      for (const tag of enr.tags) {
-        if (!current.includes(tag)) current.push(tag);
-      }
-      tags.value = current.join(', ');
-    }
+    mergeTags(enr.tags);
   }
 
-  /** Add an image to the pending set, show a thumbnail, and enrich it. */
+  function mergeTags(newTags: string[]): void {
+    if (newTags.length === 0) return;
+    const current = tags.value
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
+    for (const t of newTags) if (!current.includes(t)) current.push(t);
+    tags.value = current.join(', ');
+  }
+
   function addImage(name: string, data: Uint8Array): void {
     images.push({ name, data });
     const img = document.createElement('img');
@@ -62,7 +73,13 @@ export function renderCapture(host: HTMLElement): void {
     });
   }
 
-  /** Enrich the URL if the checkbox is on and the URL is new. */
+  function addAudioChip(name: string): void {
+    const chip = document.createElement('span');
+    chip.className = 'audio-chip';
+    chip.textContent = `🎙 ${name}`;
+    thumbs.appendChild(chip);
+  }
+
   function maybeEnrichUrl(): void {
     const value = url.value.trim();
     if (!enrichBox.checked || !value || value === lastEnrichedUrl) return;
@@ -72,6 +89,69 @@ export function renderCapture(host: HTMLElement): void {
       applyEnrichment('Link', enr);
       enrichStatus.textContent = enr.description ? '' : 'Enrichment unavailable.';
     });
+  }
+
+  async function processRecording(blob: Blob): Promise<void> {
+    const data = new Uint8Array(await blob.arrayBuffer());
+    const name = 'voice.webm';
+    audios.push({ name, data });
+    addAudioChip(name);
+    enrichStatus.textContent = 'Transcribing voice…';
+    let transcript = '';
+    try {
+      const samples = await decodeToPCM16k(blob);
+      transcript = await window.localgold.transcribe(samples, 16000);
+    } catch {
+      transcript = '';
+    }
+    if (!transcript) {
+      enrichStatus.textContent = 'Transcription unavailable.';
+      return;
+    }
+    const prefix = body.value.trim() ? `${body.value.replace(/\s+$/, '')}\n\n` : '';
+    body.value = `${prefix}## Voice\n${transcript}`;
+    enrichStatus.textContent = 'Tagging transcript…';
+    const enr = await window.localgold.enrichText(transcript);
+    mergeTags(enr.tags);
+    enrichStatus.textContent = '';
+  }
+
+  async function startRecording(): Promise<void> {
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      enrichStatus.textContent = 'Microphone unavailable.';
+      return;
+    }
+    const chunks: Blob[] = [];
+    const rec = new MediaRecorder(stream);
+    rec.addEventListener('dataavailable', (e) => chunks.push(e.data));
+    rec.addEventListener('stop', () => {
+      stream.getTracks().forEach((t) => t.stop());
+      const type = chunks[0]?.type || 'audio/webm';
+      void processRecording(new Blob(chunks, { type }));
+    });
+    rec.start();
+    recorder = rec;
+    recordBtn.textContent = '⏹ Stop';
+    recordBtn.classList.add('recording');
+    recordStart = Date.now();
+    timerEl.textContent = '0:00';
+    recordTimer = window.setInterval(() => {
+      const s = Math.floor((Date.now() - recordStart) / 1000);
+      timerEl.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    }, 1000);
+  }
+
+  function stopRecording(): void {
+    if (!recorder) return;
+    recorder.stop();
+    recorder = null;
+    window.clearInterval(recordTimer);
+    recordBtn.textContent = '🎙 Record';
+    recordBtn.classList.remove('recording');
+    timerEl.textContent = '';
   }
 
   enrichBox.addEventListener('change', maybeEnrichUrl);
@@ -92,6 +172,11 @@ export function renderCapture(host: HTMLElement): void {
     for (const img of picked) addImage(img.name, img.data);
   });
 
+  recordBtn.addEventListener('click', () => {
+    if (recorder) stopRecording();
+    else void startRecording();
+  });
+
   host.querySelector<HTMLButtonElement>('#save')!.addEventListener('click', async () => {
     const text = body.value.trim();
     if (!text) {
@@ -108,12 +193,14 @@ export function renderCapture(host: HTMLElement): void {
       body: text,
       tags: tagList,
       images,
+      audios,
       url: urlValue || undefined
     });
     body.value = '';
     tags.value = '';
     url.value = '';
     images.length = 0;
+    audios.length = 0;
     thumbs.innerHTML = '';
     enrichBox.checked = false;
     lastEnrichedUrl = '';
