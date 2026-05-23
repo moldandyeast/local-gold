@@ -1,4 +1,4 @@
-import { ipcMain, dialog } from 'electron';
+import { app, ipcMain, dialog, shell } from 'electron';
 import { join, basename } from 'path';
 import { readFile } from 'fs/promises';
 import type { DB } from './index-db';
@@ -9,6 +9,8 @@ import { backfillEmbeddings } from './embeddings';
 import { synthesizeAnswer } from './answer';
 import { enrichImage, enrichUrl, enrichText } from './enrich';
 import { createWhisperTranscriber, runTranscription, type Transcriber } from './transcribe';
+import { loadPreferences, savePreferences } from './preferences';
+import type { Preferences } from '../shared/types';
 
 let transcriberInstance: Transcriber | null = null;
 function getTranscriber(): Transcriber {
@@ -27,7 +29,13 @@ import type { Ollama } from './ollama';
 import type { NewCard } from '../shared/types';
 
 /** Register every IPC handler the renderer relies on. Call once at startup. */
-export function registerIpc(db: DB, root: string, ollama: Ollama, model: string): void {
+export function registerIpc(
+  db: DB,
+  root: string,
+  ollama: Ollama,
+  model: string,
+  userDataDir: string
+): void {
   ipcMain.handle('card:create', async (_e, input: NewCard) => {
     const card = await writeCard(root, input);
     const filePath = join(cardsDir(root), `${card.id}.md`);
@@ -81,6 +89,32 @@ export function registerIpc(db: DB, root: string, ollama: Ollama, model: string)
   ipcMain.handle('read:attachment', async (_e, rel: string) => {
     const data = await readFile(join(root, rel));
     return new Uint8Array(data);
+  });
+
+  ipcMain.handle('preferences:get', () => loadPreferences(userDataDir));
+
+  ipcMain.handle('preferences:set', (_e, prefs: Preferences) => {
+    savePreferences(userDataDir, prefs);
+    return prefs;
+  });
+
+  ipcMain.handle('runtime:data-dir', () => root);
+
+  ipcMain.handle('dialog:pick-folder', async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openDirectory', 'createDirectory']
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    return result.filePaths[0];
+  });
+
+  ipcMain.handle('shell:reveal-folder', async (_e, path: string) => {
+    await shell.openPath(path);
+  });
+
+  ipcMain.handle('app:restart', () => {
+    app.relaunch();
+    app.exit(0);
   });
 
   // Streaming: tokens flow back as answer:token, ending with done or error.
