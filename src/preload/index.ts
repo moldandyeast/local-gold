@@ -5,7 +5,8 @@ import type {
   SearchResult,
   OllamaStatus,
   AnswerResult,
-  Enrichment
+  Enrichment,
+  Preferences
 } from '../shared/types';
 
 /** The API exposed to the renderer as `window.localgold`. */
@@ -22,6 +23,12 @@ export interface LocalGoldApi {
   enrichText(text: string): Promise<Enrichment>;
   transcribe(samples: Float32Array, sampleRate: number): Promise<string>;
   readAttachment(rel: string): Promise<Uint8Array>;
+  getPreferences(): Promise<Preferences>;
+  setPreferences(prefs: Preferences): Promise<Preferences>;
+  getEffectiveDataDir(): Promise<string>;
+  pickFolder(): Promise<string | null>;
+  revealFolder(path: string): Promise<void>;
+  restartApp(): Promise<void>;
   ask(query: string, onToken: (chunk: string) => void): Promise<AnswerResult>;
 }
 
@@ -38,6 +45,12 @@ const api: LocalGoldApi = {
   enrichText: (text) => ipcRenderer.invoke('enrich:text', text),
   transcribe: (samples, sampleRate) => ipcRenderer.invoke('transcribe:audio', samples, sampleRate),
   readAttachment: (rel) => ipcRenderer.invoke('read:attachment', rel),
+  getPreferences: () => ipcRenderer.invoke('preferences:get'),
+  setPreferences: (prefs) => ipcRenderer.invoke('preferences:set', prefs),
+  getEffectiveDataDir: () => ipcRenderer.invoke('runtime:data-dir'),
+  pickFolder: () => ipcRenderer.invoke('dialog:pick-folder'),
+  revealFolder: (path) => ipcRenderer.invoke('shell:reveal-folder', path),
+  restartApp: () => ipcRenderer.invoke('app:restart'),
   ask: (query, onToken) =>
     new Promise<AnswerResult>((resolve, reject) => {
       const onTok = (_e: unknown, chunk: string): void => onToken(chunk);
