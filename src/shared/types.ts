@@ -60,3 +60,9 @@ export interface AnswerResult {
   /** The cards passed to the model, in [1..n] order. */
   sources: Card[];
 }
+
+/** AI-generated enrichment for a card: a description and suggested tags. */
+export interface Enrichment {
+  description: string;
+  tags: string[];
+}
