@@ -201,3 +201,49 @@ input[type='text']:focus {
 #fallback:empty { display: none; }
 #pending:empty { display: none; }
 #pending code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.annot-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 10, 0.92);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+.annot-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.annot-toolbar .spacer { flex: 1; }
+.annot-toolbar .tool {
+  padding: 6px 12px;
+  background: transparent;
+  color: var(--fg-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.annot-toolbar .tool.active {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+.annot-canvas-wrap {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+#annot-canvas {
+  max-width: 100%;
+  max-height: 100%;
+  background: #fff;
+  border: 1px solid var(--border);
+  cursor: crosshair;
+}

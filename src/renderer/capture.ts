@@ -1,5 +1,6 @@
 import type { Enrichment, NewCard } from '../shared/types';
 import { decodeToPCM16k } from './audio';
+import { openAnnotator } from './annotate';
 
 /** Render the capture view into `host`. */
 export function renderCapture(host: HTMLElement): void {
@@ -16,6 +17,10 @@ export function renderCapture(host: HTMLElement): void {
     <div class="row">
       <button class="secondary" id="pick">Choose images…</button>
       <span class="hint">or paste an image</span>
+    </div>
+    <div class="row">
+      <button class="secondary" id="screenshot">📸 Screenshot</button>
+      <span class="hint">capture a region, annotate, optionally narrate</span>
     </div>
     <div class="row">
       <button class="secondary record" id="record">🎙 Record</button>
@@ -170,6 +175,23 @@ export function renderCapture(host: HTMLElement): void {
   host.querySelector<HTMLButtonElement>('#pick')!.addEventListener('click', async () => {
     const picked = await window.localgold.pickImages();
     for (const img of picked) addImage(img.name, img.data);
+  });
+
+  host.querySelector<HTMLButtonElement>('#screenshot')!.addEventListener('click', async () => {
+    const png = await window.localgold.captureScreenshot();
+    if (!png) return;
+    const result = await openAnnotator(png);
+    if (!result) return;
+    addImage('screenshot.png', result.image);
+    for (const aud of result.audios) {
+      audios.push(aud);
+      addAudioChip(aud.name);
+    }
+    if (result.voiceBody) {
+      const prefix = body.value.trim() ? `${body.value.replace(/\s+$/, '')}\n\n` : '';
+      body.value = `${prefix}## Voice\n${result.voiceBody}`;
+    }
+    mergeTags(result.voiceTags);
   });
 
   recordBtn.addEventListener('click', () => {
