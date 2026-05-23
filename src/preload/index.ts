@@ -19,6 +19,9 @@ export interface LocalGoldApi {
   pickImages(): Promise<NewCard['images']>;
   enrichImage(data: Uint8Array): Promise<Enrichment>;
   enrichUrl(url: string): Promise<Enrichment>;
+  enrichText(text: string): Promise<Enrichment>;
+  transcribe(samples: Float32Array, sampleRate: number): Promise<string>;
+  readAttachment(rel: string): Promise<Uint8Array>;
   ask(query: string, onToken: (chunk: string) => void): Promise<AnswerResult>;
 }
 
@@ -32,6 +35,9 @@ const api: LocalGoldApi = {
   pickImages: () => ipcRenderer.invoke('dialog:pick-images'),
   enrichImage: (data) => ipcRenderer.invoke('enrich:image', data),
   enrichUrl: (url) => ipcRenderer.invoke('enrich:url', url),
+  enrichText: (text) => ipcRenderer.invoke('enrich:text', text),
+  transcribe: (samples, sampleRate) => ipcRenderer.invoke('transcribe:audio', samples, sampleRate),
+  readAttachment: (rel) => ipcRenderer.invoke('read:attachment', rel),
   ask: (query, onToken) =>
     new Promise<AnswerResult>((resolve, reject) => {
       const onTok = (_e: unknown, chunk: string): void => onToken(chunk);

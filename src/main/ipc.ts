@@ -7,7 +7,14 @@ import { writeCard, hashContent } from './store';
 import { hybridSearch } from './search';
 import { backfillEmbeddings } from './embeddings';
 import { synthesizeAnswer } from './answer';
-import { enrichImage, enrichUrl } from './enrich';
+import { enrichImage, enrichUrl, enrichText } from './enrich';
+import { createWhisperTranscriber, runTranscription, type Transcriber } from './transcribe';
+
+let transcriberInstance: Transcriber | null = null;
+function getTranscriber(): Transcriber {
+  if (!transcriberInstance) transcriberInstance = createWhisperTranscriber();
+  return transcriberInstance;
+}
 
 /** Fetch a page's HTML, with an 8s timeout. */
 async function fetchPage(url: string): Promise<string> {
@@ -62,6 +69,19 @@ export function registerIpc(db: DB, root: string, ollama: Ollama, model: string)
   ipcMain.handle('enrich:image', (_e, data: Uint8Array) => enrichImage(ollama, data));
 
   ipcMain.handle('enrich:url', (_e, url: string) => enrichUrl(ollama, fetchPage, url));
+
+  ipcMain.handle('enrich:text', (_e, text: string) => enrichText(ollama, text));
+
+  ipcMain.handle(
+    'transcribe:audio',
+    async (_e, samples: Float32Array, sampleRate: number) =>
+      runTranscription(getTranscriber(), samples, sampleRate)
+  );
+
+  ipcMain.handle('read:attachment', async (_e, rel: string) => {
+    const data = await readFile(join(root, rel));
+    return new Uint8Array(data);
+  });
 
   // Streaming: tokens flow back as answer:token, ending with done or error.
   ipcMain.on('answer:ask', async (e, query: string) => {
