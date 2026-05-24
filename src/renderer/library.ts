@@ -1,5 +1,6 @@
 import type { AnswerResult, Card } from '../shared/types';
 import { parseCitations } from './citations';
+import { icon } from './icons';
 
 function escapeHtml(s: string): string {
   return s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!);
@@ -12,16 +13,17 @@ function cardHtml(card: Card, snippet?: string): string {
     : escapeHtml(card.body.slice(0, 240));
   const audioRels = card.attachments.filter((a) => /\.(webm|m4a|mp3|wav|ogg)$/i.test(a));
   const imageCount = card.attachments.length - audioRels.length;
-  const imageMeta = imageCount
-    ? `<div class="meta">${imageCount} image(s) attached</div>`
-    : '';
+  const imageMeta = imageCount > 0 ? ` · ${imageCount} image${imageCount > 1 ? 's' : ''}` : '';
   const audios = audioRels
-    .map((a) => `<button class="play" data-rel="${escapeHtml(a)}">▶ Play</button>`)
+    .map(
+      (a) =>
+        `<button class="play" data-rel="${escapeHtml(a)}">${icon('play', 10)} Play</button>`
+    )
     .join('');
   return `<div class="card" data-card-id="${escapeHtml(card.id)}">
-    <div class="meta">${escapeHtml(card.created)}</div>
-    <div>${text}</div>
-    <div>${tags}</div>${imageMeta}${audios ? `<div class="audios">${audios}</div>` : ''}
+    <div class="meta">${icon('calendar', 11)} ${escapeHtml(card.created)}${imageMeta}</div>
+    <div class="body">${text}</div>
+    <div class="tags">${tags}${audios ? `<div class="audios">${audios}</div>` : ''}</div>
   </div>`;
 }
 
@@ -47,8 +49,10 @@ function answerHtml(result: AnswerResult): string {
         `${escapeHtml(c.body.slice(0, 80))}</li>`
     )
     .join('');
-  return `<h3>Answer</h3><div class="answer-text">${body}</div>
-    <h4>Sources</h4><ul class="sources">${sources}</ul>`;
+  return `<h3>${icon('sparkles', 11)} Answer</h3>
+    <div class="answer-text">${body}</div>
+    <h4>Sources</h4>
+    <ul class="sources">${sources}</ul>`;
 }
 
 /** Map a chat error message to a short fix hint. */
@@ -60,8 +64,14 @@ function errorHint(message: string): string {
 export function renderLibrary(host: HTMLElement): void {
   host.innerHTML = `
     <h2>Library</h2>
-    <div id="ollama-status" class="hint"></div>
-    <input id="q" type="text" placeholder="Search cards…  (⌘+Enter to ask)" />
+    <div class="search-row">
+      <div id="ollama-status"></div>
+      <span class="kbhint">${icon('corner-down-left', 10)} ⌘↵ to ask</span>
+    </div>
+    <div class="search">
+      <span class="ico">${icon('search', 14)}</span>
+      <input id="q" type="text" placeholder="Search cards…" />
+    </div>
     <div id="answer"></div>
     <div id="results"></div>
   `;
@@ -73,13 +83,11 @@ export function renderLibrary(host: HTMLElement): void {
   async function showStatus(): Promise<void> {
     const status = await window.localgold.ollamaStatus();
     const healthy = status.reachable && status.hasEmbedModel;
-    if (healthy) {
-      statusEl.textContent = 'Semantic search on';
-    } else if (status.reachable) {
-      statusEl.textContent = 'Semantic search off — run: ollama pull embeddinggemma';
-    } else {
-      statusEl.textContent = 'Semantic search offline — start Ollama';
-    }
+    let text: string;
+    if (healthy) text = 'Semantic search on';
+    else if (status.reachable) text = 'Semantic search off — run: ollama pull embeddinggemma';
+    else text = 'Semantic search offline — start Ollama';
+    statusEl.innerHTML = `<span class="dot"></span>${escapeHtml(text)}`;
     statusEl.className = healthy ? 'ok' : 'problem';
   }
 
