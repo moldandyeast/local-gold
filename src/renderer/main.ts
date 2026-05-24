@@ -1,4 +1,6 @@
 import '@fontsource-variable/onest/index.css';
+import '@fontsource/commit-mono/400.css';
+import '@fontsource/commit-mono/500.css';
 import { renderCapture } from './capture';
 import { renderLibrary } from './library';
 import { renderSettings } from './settings';
