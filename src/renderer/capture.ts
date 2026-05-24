@@ -1,34 +1,39 @@
 import type { Enrichment, NewCard } from '../shared/types';
 import { decodeToPCM16k } from './audio';
 import { openAnnotator } from './annotate';
+import { icon } from './icons';
 
 /** Render the capture view into `host`. */
 export function renderCapture(host: HTMLElement): void {
   host.innerHTML = `
     <h2>Capture</h2>
-    <textarea id="body" placeholder="Write an insight…"></textarea>
-    <input id="tags" type="text" placeholder="tags, comma, separated" />
-    <input id="url" type="text" placeholder="https://…  (optional)" />
-    <div class="row">
-      <input type="checkbox" id="enrich-url" />
-      <label for="enrich-url">Summarise the linked page</label>
+    <div>
+      <div class="label t-micro">Note</div>
+      <textarea id="body" placeholder="Write an insight…"></textarea>
+    </div>
+    <div style="margin-top:14px">
+      <div class="label t-micro">${icon('tag', 11)} Tags</div>
+      <input id="tags" type="text" placeholder="pricing, strategy" />
+    </div>
+    <div style="margin-top:14px">
+      <div class="label t-micro">${icon('link', 11)} Link</div>
+      <input id="url" type="text" placeholder="https://…" />
+      <label class="check t-micro" for="enrich-url">
+        <input type="checkbox" id="enrich-url" /> Summarise the linked page
+      </label>
     </div>
     <div class="thumbs" id="thumbs"></div>
     <div class="row">
-      <button class="secondary" id="pick">Choose images…</button>
-      <span class="hint">or paste an image</span>
-    </div>
-    <div class="row">
-      <button class="secondary" id="screenshot">📸 Screenshot</button>
-      <span class="hint">capture a region, annotate, optionally narrate</span>
-    </div>
-    <div class="row">
-      <button class="secondary record" id="record">🎙 Record</button>
+      <button class="secondary" id="pick">${icon('image', 12)} Choose images</button>
+      <button class="secondary" id="screenshot">${icon('camera', 12)} Screenshot</button>
+      <button class="secondary record" id="record">${icon('mic', 12)} Record</button>
       <span id="record-timer" class="hint"></span>
     </div>
-    <button class="primary" id="save">Save card</button>
-    <span id="status" class="hint"></span>
-    <div id="enrich-status" class="hint"></div>
+    <div class="row">
+      <button class="primary" id="save">Save card</button>
+      <span id="status" class="hint"></span>
+    </div>
+    <div id="enrich-status" class="hint" style="margin-top:8px"></div>
   `;
 
   const body = host.querySelector<HTMLTextAreaElement>('#body')!;
@@ -72,16 +77,24 @@ export function renderCapture(host: HTMLElement): void {
     img.src = URL.createObjectURL(new Blob([data as BlobPart]));
     thumbs.appendChild(img);
     enrichStatus.textContent = 'Describing image…';
+    enrichStatus.className = 'warning';
     void window.localgold.enrichImage(data).then((enr) => {
       applyEnrichment('Image', enr);
-      enrichStatus.textContent = enr.description ? '' : 'Enrichment unavailable.';
+      if (enr.description) {
+        enrichStatus.textContent = '';
+        enrichStatus.className = 'hint';
+      } else {
+        enrichStatus.textContent = 'Enrichment unavailable.';
+        enrichStatus.className = 'problem';
+      }
     });
   }
 
   function addAudioChip(name: string): void {
     const chip = document.createElement('span');
     chip.className = 'audio-chip';
-    chip.textContent = `🎙 ${name}`;
+    chip.innerHTML = icon('mic', 10);
+    chip.appendChild(document.createTextNode(' ' + name));
     thumbs.appendChild(chip);
   }
 
@@ -90,9 +103,16 @@ export function renderCapture(host: HTMLElement): void {
     if (!enrichBox.checked || !value || value === lastEnrichedUrl) return;
     lastEnrichedUrl = value;
     enrichStatus.textContent = 'Reading the page…';
+    enrichStatus.className = 'warning';
     void window.localgold.enrichUrl(value).then((enr) => {
       applyEnrichment('Link', enr);
-      enrichStatus.textContent = enr.description ? '' : 'Enrichment unavailable.';
+      if (enr.description) {
+        enrichStatus.textContent = '';
+        enrichStatus.className = 'hint';
+      } else {
+        enrichStatus.textContent = 'Enrichment unavailable.';
+        enrichStatus.className = 'problem';
+      }
     });
   }
 
@@ -102,6 +122,7 @@ export function renderCapture(host: HTMLElement): void {
     audios.push({ name, data });
     addAudioChip(name);
     enrichStatus.textContent = 'Transcribing voice…';
+    enrichStatus.className = 'warning';
     let transcript = '';
     try {
       const samples = await decodeToPCM16k(blob);
@@ -111,14 +132,17 @@ export function renderCapture(host: HTMLElement): void {
     }
     if (!transcript) {
       enrichStatus.textContent = 'Transcription unavailable.';
+      enrichStatus.className = 'problem';
       return;
     }
     const prefix = body.value.trim() ? `${body.value.replace(/\s+$/, '')}\n\n` : '';
     body.value = `${prefix}## Voice\n${transcript}`;
     enrichStatus.textContent = 'Tagging transcript…';
+    enrichStatus.className = 'warning';
     const enr = await window.localgold.enrichText(transcript);
     mergeTags(enr.tags);
     enrichStatus.textContent = '';
+    enrichStatus.className = 'hint';
   }
 
   async function startRecording(): Promise<void> {
@@ -127,6 +151,7 @@ export function renderCapture(host: HTMLElement): void {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
       enrichStatus.textContent = 'Microphone unavailable.';
+      enrichStatus.className = 'problem';
       return;
     }
     const chunks: Blob[] = [];
@@ -139,7 +164,7 @@ export function renderCapture(host: HTMLElement): void {
     });
     rec.start();
     recorder = rec;
-    recordBtn.textContent = '⏹ Stop';
+    recordBtn.innerHTML = `${icon('circle-stop', 12)} Stop`;
     recordBtn.classList.add('recording');
     recordStart = Date.now();
     timerEl.textContent = '0:00';
@@ -154,7 +179,7 @@ export function renderCapture(host: HTMLElement): void {
     recorder.stop();
     recorder = null;
     window.clearInterval(recordTimer);
-    recordBtn.textContent = '🎙 Record';
+    recordBtn.innerHTML = `${icon('mic', 12)} Record`;
     recordBtn.classList.remove('recording');
     timerEl.textContent = '';
   }
@@ -227,6 +252,7 @@ export function renderCapture(host: HTMLElement): void {
     enrichBox.checked = false;
     lastEnrichedUrl = '';
     enrichStatus.textContent = '';
+    enrichStatus.className = 'hint';
     status.textContent = 'Saved.';
     status.className = 'ok';
   });
