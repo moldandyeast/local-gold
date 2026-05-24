@@ -1,3 +1,5 @@
+import { icon } from './icons';
+
 function escapeHtml(s: string): string {
   return s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!);
 }
@@ -11,8 +13,8 @@ export function renderSettings(host: HTMLElement): void {
       <div id="data-folder" class="path"></div>
       <div id="fallback" class="problem"></div>
       <div class="row">
-        <button class="secondary" id="pick-folder">Choose folder…</button>
-        <button class="secondary" id="reveal">Reveal in Finder</button>
+        <button class="secondary" id="pick-folder">${icon('folder-open', 12)} Choose folder…</button>
+        <button class="secondary" id="reveal">${icon('external-link', 12)} Reveal in Finder</button>
       </div>
       <div id="pending"></div>
     </div>
