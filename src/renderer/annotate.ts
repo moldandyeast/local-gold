@@ -1,6 +1,7 @@
 import type { Enrichment } from '../shared/types';
 import { decodeToPCM16k } from './audio';
 import { arrowhead, type Point, type Shape } from './shapes';
+import { icon } from './icons';
 
 /** What `openAnnotator` returns on Done. */
 export interface AnnotatorResult {
@@ -28,12 +29,12 @@ export function openAnnotator(imageBytes: Uint8Array): Promise<AnnotatorResult |
     overlay.className = 'annot-overlay';
     overlay.innerHTML = `
       <div class="annot-toolbar">
-        <button class="tool active" data-tool="pen">Pen</button>
-        <button class="tool" data-tool="arrow">Arrow</button>
-        <button class="tool" data-tool="rect">Rect</button>
-        <button class="tool" id="undo">Undo</button>
-        <button class="tool" id="record">🎙 Record</button>
-        <span id="annot-status" class="hint"></span>
+        <button class="tool active" data-tool="pen">${icon('pen-tool', 11)} Pen</button>
+        <button class="tool" data-tool="arrow">${icon('move-right', 11)} Arrow</button>
+        <button class="tool" data-tool="rect">${icon('square', 11)} Rect</button>
+        <button class="tool" id="undo">${icon('undo-2', 11)} Undo</button>
+        <button class="tool" id="record">${icon('mic', 11)} Record</button>
+        <span id="annot-status" class="hint t-micro"></span>
         <span class="spacer"></span>
         <button class="secondary" id="cancel">Cancel</button>
         <button class="primary" id="done">Done</button>
@@ -162,6 +163,7 @@ export function openAnnotator(imageBytes: Uint8Array): Promise<AnnotatorResult |
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       } catch {
         statusEl.textContent = 'Microphone unavailable.';
+        statusEl.className = 'problem t-micro';
         return;
       }
       recordChunks = [];
@@ -170,7 +172,7 @@ export function openAnnotator(imageBytes: Uint8Array): Promise<AnnotatorResult |
       rec.addEventListener('stop', async () => {
         stream.getTracks().forEach((t) => t.stop());
         recorder = null;
-        recordBtn.textContent = '🎙 Re-record';
+        recordBtn.innerHTML = `${icon('mic', 11)} Re-record`;
         const type = recordChunks[0]?.type || 'audio/webm';
         const blob = new Blob(recordChunks, { type });
         const data = new Uint8Array(await blob.arrayBuffer());
@@ -178,6 +180,7 @@ export function openAnnotator(imageBytes: Uint8Array): Promise<AnnotatorResult |
         audios.length = 0;
         audios.push({ name: 'voice.webm', data });
         statusEl.textContent = 'Transcribing voice…';
+        statusEl.className = 'warning t-micro';
         let transcript = '';
         try {
           const samples = await decodeToPCM16k(blob);
@@ -189,17 +192,20 @@ export function openAnnotator(imageBytes: Uint8Array): Promise<AnnotatorResult |
           voiceBody = '';
           voiceTags = [];
           statusEl.textContent = 'Transcription unavailable.';
+          statusEl.className = 'problem t-micro';
           return;
         }
         voiceBody = transcript;
         statusEl.textContent = 'Tagging transcript…';
+        statusEl.className = 'warning t-micro';
         const enr: Enrichment = await window.localgold.enrichText(transcript);
         voiceTags = enr.tags;
         statusEl.textContent = '';
+        statusEl.className = 'hint t-micro';
       });
       rec.start();
       recorder = rec;
-      recordBtn.textContent = '⏹ Stop';
+      recordBtn.innerHTML = `${icon('circle-stop', 11)} Stop`;
     });
 
     overlay.querySelector<HTMLButtonElement>('#cancel')!.addEventListener('click', () => {
