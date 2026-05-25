@@ -25,9 +25,15 @@ function createWindow(): void {
 }
 
 app.whenReady().then(async () => {
-  // macOS dock icon (dev runs; a packaged build would set this via its config).
-  if (process.platform === 'darwin' && app.dock) {
-    app.dock.setIcon(join(app.getAppPath(), 'build', 'icon.png'));
+  // macOS dock icon — only in dev. A packaged .app already has its icon set
+  // via the bundle's Info.plist (icon.icns in Resources/), and the PNG isn't
+  // packed into the asar.
+  if (!app.isPackaged && process.platform === 'darwin' && app.dock) {
+    try {
+      app.dock.setIcon(join(app.getAppPath(), 'build', 'icon.png'));
+    } catch {
+      // Non-fatal: the dock icon stays as the Electron default in dev.
+    }
   }
 
   const userDataDir = app.getPath('userData');

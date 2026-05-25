@@ -38,7 +38,6 @@ Packaging triggers its own Electron-targeted rebuild via electron-builder.
 Run from the repo root:
 
 ```bash
-cd /Users/rm/Documents/LocalGold
 mkdir -p build/icon.iconset
 sips -z 16 16   build/icon.png --out build/icon.iconset/icon_16x16.png
 sips -z 32 32   build/icon.png --out build/icon.iconset/icon_16x16@2x.png

@@ -9,7 +9,8 @@
     "start": "electron-vite preview",
     "test": "vitest run",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
-    "dist": "electron-vite build && electron-builder --mac"
+    "rebuild:from-source": "cd node_modules/better-sqlite3 && rm -rf build && npm_config_target=$(node -p \"require('electron/package.json').version\") npm_config_arch=arm64 npm_config_target_arch=arm64 npm_config_disturl=https://electronjs.org/headers npm_config_runtime=electron npm_config_build_from_source=true npx node-gyp rebuild --release",
+    "dist": "npm run rebuild:from-source && electron-vite build && electron-builder --mac --config.npmRebuild=false"
   },
   "dependencies": {
     "@fontsource-variable/onest": "^5.2.11",
