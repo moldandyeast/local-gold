@@ -2,6 +2,9 @@ node_modules/
 dist/
 out/
 
+# macOS
+.DS_Store
+
 # User data and rebuildable index — not source
 index.db
 index.db-*
