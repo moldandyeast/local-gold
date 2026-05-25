@@ -37,11 +37,21 @@ async function getPipeline(): Promise<
   if (!pipelinePromise) {
     pipelinePromise = (async () => {
       const transformers = (await import('@huggingface/transformers')) as {
+        env: { cacheDir: string; allowLocalModels: boolean };
         pipeline: (
           task: string,
           model: string
         ) => Promise<(audio: Float32Array, opts?: unknown) => Promise<unknown>>;
       };
+      // In a packaged Electron app, the package lives inside app.asar (a single
+      // file at the OS level), so transformers.js's default in-package cache
+      // and `localModelPath` resolve to paths ONNX runtime cannot actually
+      // open. Point at a real writable directory and always fetch over the
+      // network (still cached after the first run).
+      const { homedir } = await import('os');
+      const { join } = await import('path');
+      transformers.env.cacheDir = join(homedir(), '.cache', 'huggingface');
+      transformers.env.allowLocalModels = false;
       return transformers.pipeline('automatic-speech-recognition', 'Xenova/whisper-base.en');
     })();
   }
